@@ -44,6 +44,7 @@ class Game:
         self.connection = connection
         self.local_id = local_id
         self.remote_input = {"move": (0.0, 0.0), "cursor": (0, 0), "fire": False}
+        self.winner_id: int | None = None
 
         self.item_textures = create_item_textures()
 
@@ -75,12 +76,15 @@ class Game:
 
             if self.mode == "client":
                 self.handle_input(dt)
-            elif not self.game_over:
-                self.handle_input(dt)
-                self.update(dt)
-                self.handle_collisions()
-                if any(p.is_dead for p in self.players.values()):
-                    self.game_over = True
+            else:
+                if not self.game_over:
+                    self.handle_input(dt)
+                    self.update(dt)
+                    self.handle_collisions()
+                    if any(p.is_dead for p in self.players.values()):
+                        self.game_over = True
+                if self.mode == "host":
+                    self.connection.send(self.build_snapshot())
 
             self.draw()
 
@@ -209,6 +213,79 @@ class Game:
         # 弾丸移動
         for b in self.bullets:
             b.update(dt)
+
+    def build_snapshot(self) -> dict:
+        """ホストが毎フレーム構築し、クライアントへ送る状態のスナップショット。"""
+        return {
+            "type": "snapshot",
+            "players": {
+                str(pid): {
+                    "pos": list(p.rect.center),
+                    "hp": p.hp,
+                    "max_hp": p.max_hp,
+                    "ammo": p.ammo,
+                    "reload": p.reload,
+                    "reload_time": p.reload_time,
+                    "grenade_count": p.grenade_count,
+                    "medkit_count": p.medkit_count,
+                    "direction": p.direction,
+                    "gun_pos": list(p.gun_pos),
+                    "muzzle": list(p.muzzle),
+                }
+                for pid, p in self.players.items()
+            },
+            "bullets": [
+                {"pos": [b.pos.x, b.pos.y], "angle": b.angle, "owner": b.owner_id}
+                for b in self.bullets
+            ],
+            "grenades": [
+                {"pos": [g.pos.x, g.pos.y], "exploded": g.exploded, "owner": g.owner_id}
+                for g in self.grenades
+            ],
+            "explosions": [
+                {"x": e.x, "y": e.y, "radius": e.radius, "timer": e.timer, "owner": e.owner_id}
+                for e in self.explosions
+            ],
+            "game_over": self.game_over,
+            "winner": self.winner_id,
+        }
+
+    def apply_snapshot(self, msg: dict) -> None:
+        """クライアントが受信したスナップショットで自分の状態を上書きする。
+        物理は一切実行せず、既存のPlayer/Bullet/Grenade/Explosionを描画用の器として再利用する。"""
+        for pid_str, pdata in msg["players"].items():
+            pid = int(pid_str)
+            player = self.players.setdefault(pid, Player(PLAYER_START_POSITIONS.get(pid, PLAYER_START_POS)))
+            player.rect.center = pdata["pos"]
+            player.hp = pdata["hp"]
+            player.max_hp = pdata["max_hp"]
+            player.ammo = pdata["ammo"]
+            player.reload = pdata["reload"]
+            player.reload_time = pdata["reload_time"]
+            player.grenade_count = pdata["grenade_count"]
+            player.medkit_count = pdata["medkit_count"]
+            player.direction = pdata["direction"]
+            player.gun_pos = tuple(pdata["gun_pos"])
+            player.muzzle = tuple(pdata["muzzle"])
+
+        self.bullets = [Bullet(b["pos"], b["angle"], b["owner"]) for b in msg["bullets"]]
+
+        grenades = []
+        for g in msg["grenades"]:
+            grenade = Grenade(g["pos"], 0.0, g["owner"])
+            grenade.exploded = g["exploded"]
+            grenades.append(grenade)
+        self.grenades = grenades
+
+        explosions = []
+        for e in msg["explosions"]:
+            explosion = Explosion((e["x"], e["y"], e["radius"]), e["owner"])
+            explosion.timer = e["timer"]
+            explosions.append(explosion)
+        self.explosions = explosions
+
+        self.game_over = msg["game_over"]
+        self.winner_id = msg["winner"]
 
     def handle_collisions(self) -> None:
         # 爆発 vs 全プレイヤー
