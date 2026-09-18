@@ -7,24 +7,28 @@ from frontend.render_utils import draw_rotated_rect
 from frontend.vision import is_point_visible
 from constants import (
     COLOR_BULLET, COLOR_GRENADE,
-    BULLET_SPEED, BULLET_WIDTH, BULLET_HEIGHT,
+    BULLET_WIDTH, BULLET_HEIGHT,
     GRENADE_THROW_SPEED, GRENADE_FRICTION, GRENADE_FUSE_TIME,
     GRENADE_EXPLOSION_RADIUS, GRENADE_VISUAL_RADIUS,
     EXPLOSION_DURATION,
 )
 
+DEFAULT_BULLET_SPEED = 800
 Point = tuple[float, float]
 
 
 class Bullet:
-    def __init__(self, p: Point, angle: float, owner_id: int = 0) -> None:
+    def __init__(
+        self, p: Point, angle: float, owner_id: int = 0, speed: float = DEFAULT_BULLET_SPEED, damage: int = 0
+    ) -> None:
         self.pos = pygame.Vector2(p)
         self.angle = angle
-        self.speed = BULLET_SPEED
+        self.speed = speed
         self.vel = pygame.Vector2(math.cos(angle), math.sin(angle)) * self.speed
         self.alive = True
         self.width, self.height = BULLET_WIDTH, BULLET_HEIGHT
         self.owner_id = owner_id
+        self.damage = damage
 
     def update(self, dt: float) -> None:
         self.pos += self.vel * dt

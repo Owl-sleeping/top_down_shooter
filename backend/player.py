@@ -3,9 +3,9 @@
 import math
 import pygame
 
+from backend.weapons import Weapon, WEAPONS
 from constants import (
     PLAYER_SIZE, PLAYER_SPEED, PLAYER_MAX_HP, MEDKIT_HEAL_AMOUNT,
-    MAX_AMMO, FIRE_RATE, RELOAD_TIME,
     MAX_GRENADES, MAX_MEDKITS,
     GUN_FORWARD_OFFSET, GUN_SIDE_OFFSET, GUN_MUZZLE_OFFSET,
 )
@@ -14,14 +14,16 @@ Point = tuple[float, float]
 
 
 class Player:
-    def __init__(self, pos: Point) -> None:
+    def __init__(self, pos: Point, weapon: Weapon | None = None) -> None:
         self.rect = pygame.Rect(pos[0], pos[1], PLAYER_SIZE, PLAYER_SIZE)
         self.speed = PLAYER_SPEED
+
+        self.weapon = weapon or WEAPONS[0]
 
         self.max_hp = PLAYER_MAX_HP
         self.hp = PLAYER_MAX_HP
 
-        self.ammo = MAX_AMMO
+        self.ammo = self.weapon.magazine_size
         self.fire_timer = 0.0
         self.reload = False
         self.reload_time = 0.0
@@ -83,21 +85,22 @@ class Player:
         if self.reload:
             self.reload_time -= dt
             if self.reload_time <= 0:
-                self.ammo = MAX_AMMO
+                self.ammo = self.weapon.magazine_size
                 self.reload = False
 
     def try_fire(self) -> tuple[Point, float] | None:
-        """発射条件を満たしていれば(銃口位置, 向き)を返し内部状態を消費する。満たさなければNone。"""
+        """発射条件を満たしていれば(銃口位置, 向き)を返し内部状態を消費する。満たさなければNone。
+        散弾銃のような複数弾の展開は、呼び出し側がself.weaponを見て行う。"""
         if self.fire_timer <= 0 and self.ammo > 0 and not self.reload:
             self.ammo -= 1
-            self.fire_timer = FIRE_RATE
+            self.fire_timer = self.weapon.fire_rate
             return (self.muzzle, self.direction)
         return None
 
     def start_reload(self) -> None:
-        if self.ammo < MAX_AMMO and not self.reload:
+        if self.ammo < self.weapon.magazine_size and not self.reload:
             self.reload = True
-            self.reload_time = RELOAD_TIME
+            self.reload_time = self.weapon.reload_time
 
     def try_throw_grenade(self, cursor_pos: Point) -> tuple[Point, float] | None:
         """投擲条件を満たしていれば(発射位置, 向き)を返し内部状態を消費する。満たさなければNone。"""

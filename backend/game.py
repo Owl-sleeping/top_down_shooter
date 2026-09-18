@@ -1,25 +1,26 @@
 """ゲームの状態保持とメインループのオーケストレーションを担うモジュール。"""
 
 import math
+import random
 import sys
 import pygame
 
-from frontend.render_utils import make_alpha_surface, draw_rotated_rect
+from frontend.render_utils import make_alpha_surface
 from frontend.vision import Vision, is_point_visible
+from frontend.weapon_sprites import load_weapon_sprites, draw_weapon_sprite
 from backend.entities import Bullet, Grenade, Explosion
 from backend.player import Player
 from backend.maps import GameMap, MAPS
+from backend.weapons import Weapon, WEAPONS, get_weapon_by_name
 from frontend.hud import create_item_textures, draw_hud
 from backend.network import Connection
 from constants import (
     WIDTH, HEIGHT, FPS,
-    COLOR_BG, COLOR_WALL, COLOR_PLAYER, COLOR_ENEMY_PLAYER, COLOR_GUN, COLOR_EXPLOSION,
+    COLOR_BG, COLOR_WALL, COLOR_PLAYER, COLOR_ENEMY_PLAYER, COLOR_EXPLOSION,
     COLOR_GAME_OVER_TEXT, GAME_OVER_FONT_SIZE,
     EXPLOSION_DURATION, EXPLOSION_DAMAGE, EXPLOSION_RING_WIDTH,
-    BULLET_DESPAWN_MARGIN, BULLET_DAMAGE,
-    PLAYER_FOV_DEGREES,
+    BULLET_DESPAWN_MARGIN,
     VISION_DARKNESS_ALPHA, VISION_LIGHT_ALPHA,
-    GUN_LENGTH, GUN_WIDTH,
 )
 
 
@@ -33,6 +34,7 @@ class Game:
         connection: Connection | None = None,
         local_id: int = 0,
         game_map: GameMap | None = None,
+        weapons: dict[int, Weapon] | None = None,
     ) -> None:
         self.screen = screen
         self.clock = clock
@@ -45,13 +47,14 @@ class Game:
         self.remote_input = {"move": (0.0, 0.0), "cursor": (0, 0), "fire": False}
 
         self.item_textures = create_item_textures()
+        self.weapon_sprites = load_weapon_sprites()
 
         self.game_map = game_map or MAPS[0]
         self.walls = self.game_map.build_wall_rects()
+        self.weapons = weapons or {0: WEAPONS[0], 1: WEAPONS[0]}
 
         self.vision = Vision(self.walls)
 
-        self.fov = math.radians(PLAYER_FOV_DEGREES)
         self.tris = []
         self.disconnected = False
 
@@ -59,10 +62,12 @@ class Game:
 
     def _reset_round_state(self) -> None:
         """1試合分の状態(プレイヤー・弾・グレネード・爆発・勝敗)を初期化する。
-        壁配置やネットワーク接続など、試合をまたいで保持すべきものには触れない。"""
-        self.players: dict[int, Player] = {0: Player(self.game_map.spawn_positions[0])}
+        壁配置やネットワーク接続・武器選択など、試合をまたいで保持すべきものには触れない。"""
+        self.players: dict[int, Player] = {
+            0: Player(self.game_map.spawn_positions[0], weapon=self.weapons.get(0, WEAPONS[0]))
+        }
         if self.mode != "solo":
-            self.players[1] = Player(self.game_map.spawn_positions[1])
+            self.players[1] = Player(self.game_map.spawn_positions[1], weapon=self.weapons.get(1, WEAPONS[0]))
 
         self.bullets: list[Bullet] = []
         self.grenades: list[Grenade] = []
@@ -228,7 +233,13 @@ class Game:
             fired = player.try_fire()
             if fired is not None:
                 muzzle, direction = fired
-                self.bullets.append(Bullet(muzzle, direction, owner_id=pid))
+                weapon = player.weapon
+                for _ in range(weapon.pellet_count):
+                    spread = math.radians(random.uniform(-weapon.spread_degrees / 2, weapon.spread_degrees / 2))
+                    self.bullets.append(Bullet(
+                        muzzle, direction + spread, owner_id=pid,
+                        speed=weapon.bullet_speed, damage=weapon.bullet_damage,
+                    ))
 
     def update(self, dt: float) -> None:
         # グレネード更新
@@ -263,6 +274,7 @@ class Game:
                     "direction": p.direction,
                     "gun_pos": list(p.gun_pos),
                     "muzzle": list(p.muzzle),
+                    "weapon": p.weapon.name,
                 }
                 for pid, p in self.players.items()
             },
@@ -288,7 +300,8 @@ class Game:
         for pid_str, pdata in msg["players"].items():
             pid = int(pid_str)
             fallback_pos = self.game_map.spawn_positions.get(pid, (0, 0))
-            player = self.players.setdefault(pid, Player(fallback_pos))
+            player = self.players.setdefault(pid, Player(fallback_pos, weapon=self.weapons.get(pid, WEAPONS[0])))
+            player.weapon = get_weapon_by_name(pdata["weapon"])
             player.rect.center = pdata["pos"]
             player.hp = pdata["hp"]
             player.max_hp = pdata["max_hp"]
@@ -349,7 +362,7 @@ class Game:
                 if pid == b.owner_id:
                     continue
                 if b_rect.colliderect(p.rect):
-                    p.take_damage(BULLET_DAMAGE)
+                    p.take_damage(b.damage)
                     b.alive = False
                     break
         self.bullets = [b for b in self.bullets if b.alive]
@@ -369,8 +382,10 @@ class Game:
         # 暗闇用オーバーレイ
         dark_overlay = make_alpha_surface((WIDTH, HEIGHT), fill=(0, 0, 0, VISION_DARKNESS_ALPHA))
 
-        # 視界ポリゴンの作成（自分視点のみ）
-        self.tris = self.vision.get_triangles(center, direction, self.fov)
+        # 視界ポリゴンの作成（自分視点のみ。射程・視野角は装備武器に依存）
+        local_weapon = local_player.weapon
+        fov = math.radians(local_weapon.fov_degrees)
+        self.tris = self.vision.get_triangles(center, direction, fov, max_length=local_weapon.vision_range)
         vision_surf = make_alpha_surface((WIDTH, HEIGHT))
         for t in self.tris:
             pygame.draw.polygon(vision_surf, (255, 255, 255, VISION_LIGHT_ALPHA), t)
@@ -396,14 +411,18 @@ class Game:
 
         # 自分は常に描画
         pygame.draw.rect(screen, COLOR_PLAYER, local_player.rect)
-        draw_rotated_rect(screen, (GUN_LENGTH, GUN_WIDTH), COLOR_GUN, local_player.direction, local_player.gun_pos)
+        draw_weapon_sprite(
+            screen, self.weapon_sprites[local_weapon.name], local_player.direction, local_player.gun_pos
+        )
 
         # 敵は自分の視界(FOV三角形)内にいる時だけ描画する
         enemy = next((p for pid, p in self.players.items() if pid != self.local_id), None)
         enemy_visible = enemy is not None and is_point_visible(enemy.rect.center, self.tris)
         if enemy_visible:
             pygame.draw.rect(screen, COLOR_ENEMY_PLAYER, enemy.rect)
-            draw_rotated_rect(screen, (GUN_LENGTH, GUN_WIDTH), COLOR_GUN, enemy.direction, enemy.gun_pos)
+            draw_weapon_sprite(
+                screen, self.weapon_sprites[enemy.weapon.name], enemy.direction, enemy.gun_pos
+            )
 
         draw_hud(screen, self.font, local_player, self.item_textures, enemy=enemy if enemy_visible else None)
 

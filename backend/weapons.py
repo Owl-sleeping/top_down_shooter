@@ -1,0 +1,92 @@
+"""武器の定義（弾数・連射間隔・リロード時間・弾速・威力・拡散・視界）。"""
+
+
+class Weapon:
+    def __init__(
+        self,
+        name: str,
+        image_filename: str,
+        magazine_size: int,
+        fire_rate: float,
+        reload_time: float,
+        bullet_speed: float,
+        bullet_damage: int,
+        pellet_count: int,
+        spread_degrees: float,
+        vision_range: float,
+        fov_degrees: float,
+    ) -> None:
+        self.name = name
+        self.image_filename = image_filename
+        self.magazine_size = magazine_size
+        self.fire_rate = fire_rate          # 発射クールダウン(秒)。小さいほど連射が速い
+        self.reload_time = reload_time      # リロードにかかる時間(秒)
+        self.bullet_speed = bullet_speed    # 弾速(px/秒)
+        self.bullet_damage = bullet_damage  # 1発(1粒)あたりの威力
+        self.pellet_count = pellet_count    # 1トリガーで発射される弾の数(散弾銃は複数)
+        self.spread_degrees = spread_degrees  # 弾のばらけ角度(左右合計の幅、度)
+        self.vision_range = vision_range    # 視界(FOV三角形)の届く距離(px)
+        self.fov_degrees = fov_degrees      # 視界(FOV三角形)の開き角度(度)
+
+
+# 各武器のステータス。数値はユーザー指定の相対評価(速度/収束の高低など)を
+# HP100基準のゲームバランスに落とし込んだもの。プレイして違和感があれば
+# ここの数値だけ調整すればよい。
+WEAPONS: list[Weapon] = [
+    Weapon(
+        name="AKS74U",
+        image_filename="AKS74U.png",
+        magazine_size=30,
+        fire_rate=0.12,      # 速度:中(自動小銃として標準的な連射速度)
+        reload_time=1.8,
+        bullet_speed=900,
+        bullet_damage=20,    # 威力20
+        pellet_count=1,
+        spread_degrees=4,    # 収束:低(多少ばらける)
+        vision_range=1250,   # 射程50 -> 50 * 25px
+        fov_degrees=60,
+    ),
+    Weapon(
+        name="M870",
+        image_filename="M870.png",
+        magazine_size=8,     # 弾8
+        fire_rate=0.6,       # 速度:低(ポンプアクション)
+        reload_time=2.5,
+        bullet_speed=700,
+        bullet_damage=10,    # 5発の散弾で合計威力50(10 x 5)
+        pellet_count=5,      # 5発の散弾
+        spread_degrees=25,   # 散弾の広がり
+        vision_range=250,    # 射程10 -> 10 * 25px
+        fov_degrees=90,      # 近距離武器なので視野は広め
+    ),
+    Weapon(
+        name="M700",
+        image_filename="M700.png",
+        magazine_size=5,     # 弾5
+        fire_rate=1.5,       # 激遅い(ボルトアクション)
+        reload_time=2.2,
+        bullet_speed=1400,
+        bullet_damage=70,    # ボルトアクションライフルらしい高威力
+        pellet_count=1,
+        spread_degrees=0,    # 精密射撃、ばらけない
+        vision_range=1900,   # 未指定。狙撃銃らしく最長の射程
+        fov_degrees=20,      # スコープのぞき込みのイメージで視野は狭い
+    ),
+    Weapon(
+        name="MP5K",
+        image_filename="MP5K.png",
+        magazine_size=25,    # 未指定。SMGらしい弾数
+        fire_rate=0.08,      # 未指定。最速の連射速度
+        reload_time=1.4,
+        bullet_speed=850,
+        bullet_damage=8,     # 未指定。1発は弱いが連射でカバー
+        pellet_count=1,
+        spread_degrees=5,
+        vision_range=700,    # 未指定。中距離
+        fov_degrees=75,
+    ),
+]
+
+
+def get_weapon_by_name(name: str) -> Weapon:
+    return next((w for w in WEAPONS if w.name == name), WEAPONS[0])

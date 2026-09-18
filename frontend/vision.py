@@ -32,13 +32,13 @@ class Vision:
     def __init__(self, walls: list[pygame.Rect]) -> None:
         self.walls = walls
 
-    def ray(self, p: Point, angle: float) -> Point:
+    def ray(self, p: Point, angle: float, max_length: float = VISION_RAY_MAX_LENGTH) -> Point:
         ray_end = (
-            p[0] + math.cos(angle) * VISION_RAY_MAX_LENGTH,
-            p[1] + math.sin(angle) * VISION_RAY_MAX_LENGTH,
+            p[0] + math.cos(angle) * max_length,
+            p[1] + math.sin(angle) * max_length,
         )
         closest_hit = ray_end
-        min_dist_sq = VISION_RAY_MAX_LENGTH ** 2
+        min_dist_sq = max_length ** 2
 
         for w in self.walls:
             # 矩形の4辺の取り出す
@@ -73,7 +73,9 @@ class Vision:
             return (x1 + t * (x2 - x1), y1 + t * (y2 - y1))
         return None
 
-    def get_triangles(self, p: Point, direction: float, fov: float) -> list[list[Point]]:
+    def get_triangles(
+        self, p: Point, direction: float, fov: float, max_length: float = VISION_RAY_MAX_LENGTH
+    ) -> list[list[Point]]:
         pts = []
         n = VISION_RAY_COUNT
         half_fov = fov / 2.0
@@ -81,7 +83,7 @@ class Vision:
 
         for i in range(n):
             angle = start_angle + (fov * i / (n - 1))
-            pts.append(self.ray(p, angle))
+            pts.append(self.ray(p, angle, max_length))
 
         triangles = []
         for i in range(n - 1):

@@ -2,14 +2,15 @@
 
 import pygame
 
+from pathlib import Path
+
 from backend.player import Player
 from constants import (
     COLOR_HP_BG, COLOR_HP_FG, COLOR_AMMO_FULL, COLOR_AMMO_EMPTY,
     COLOR_RELOAD_BG, COLOR_RELOAD_FG, COLOR_RELOAD_TEXT,
     COLOR_SLOT_BG, COLOR_SLOT_BORDER, COLOR_SLOT_NUMBER, COLOR_COUNT_TEXT, COLOR_COUNT_BG,
     COLOR_GRENADE_BAR, COLOR_MEDKIT_BAR, COLOR_ENEMY_PLAYER,
-    COLOR_GRENADE_ICON, COLOR_MEDKIT_ICON_BODY, COLOR_MEDKIT_ICON_CROSS,
-    MAX_AMMO, RELOAD_TIME,
+    COLOR_GRENADE_ICON,
     MAX_GRENADES, MAX_MEDKITS,
     HP_BAR_POS, HP_BAR_SIZE, AMMO_BOX_ORIGIN, AMMO_BOX_SIZE, AMMO_BOX_GAP,
     RELOAD_GAUGE_POS, RELOAD_GAUGE_SIZE, RELOAD_TEXT_POS,
@@ -17,6 +18,8 @@ from constants import (
     INVENTORY_SLOT_COUNT, INVENTORY_SLOT_SIZE, INVENTORY_SLOT_GAP, INVENTORY_ORIGIN,
     INVENTORY_ICON_SIZE,
 )
+
+IMAGES_DIR = Path(__file__).resolve().parent.parent / "images"
 
 # スロット番号(表示順)に対応する所持品の定義。ここに1件足すだけで
 # インベントリスロットに新しいアイテムを割り当てられる。要素が無い
@@ -32,10 +35,8 @@ def create_item_textures() -> dict[str, pygame.Surface]:
     grenade_tex = pygame.Surface(INVENTORY_ICON_SIZE, pygame.SRCALPHA)
     pygame.draw.circle(grenade_tex, COLOR_GRENADE_ICON, (24, 24), 20)
 
-    medkit_tex = pygame.Surface(INVENTORY_ICON_SIZE, pygame.SRCALPHA)
-    pygame.draw.rect(medkit_tex, COLOR_MEDKIT_ICON_BODY, (8, 8, 32, 32))
-    pygame.draw.rect(medkit_tex, COLOR_MEDKIT_ICON_CROSS, (20, 12, 8, 24))
-    pygame.draw.rect(medkit_tex, COLOR_MEDKIT_ICON_CROSS, (12, 20, 24, 8))
+    bandage_img = pygame.image.load(str(IMAGES_DIR / "bandage.png")).convert_alpha()
+    medkit_tex = pygame.transform.smoothscale(bandage_img, INVENTORY_ICON_SIZE)
 
     return {"grenade": grenade_tex, "medkit": medkit_tex}
 
@@ -72,7 +73,7 @@ def _draw_enemy_hp_bar(screen: pygame.Surface, font: pygame.font.Font, enemy: Pl
 
 
 def _draw_ammo_boxes(screen: pygame.Surface, player: Player) -> None:
-    for i in range(MAX_AMMO):
+    for i in range(player.weapon.magazine_size):
         box = pygame.Rect(AMMO_BOX_ORIGIN[0] + i * AMMO_BOX_GAP, AMMO_BOX_ORIGIN[1], *AMMO_BOX_SIZE)
         if i < player.ammo:
             pygame.draw.rect(screen, COLOR_AMMO_FULL, box)
@@ -83,7 +84,7 @@ def _draw_ammo_boxes(screen: pygame.Surface, player: Player) -> None:
 def _draw_reload_gauge(screen: pygame.Surface, font: pygame.font.Font, player: Player) -> None:
     if not player.reload:
         return
-    rate = max(0.0, min(1.0, 1.0 - (player.reload_time / RELOAD_TIME)))
+    rate = max(0.0, min(1.0, 1.0 - (player.reload_time / player.weapon.reload_time)))
     pygame.draw.rect(screen, COLOR_RELOAD_BG, (*RELOAD_GAUGE_POS, *RELOAD_GAUGE_SIZE))
     pygame.draw.rect(screen, COLOR_RELOAD_FG, (
         RELOAD_GAUGE_POS[0], RELOAD_GAUGE_POS[1], RELOAD_GAUGE_SIZE[0] * rate, RELOAD_GAUGE_SIZE[1]
