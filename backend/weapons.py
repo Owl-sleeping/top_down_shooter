@@ -1,4 +1,8 @@
-"""武器の定義（弾数・連射間隔・リロード時間・弾速・威力・拡散・視界）。"""
+"""武器の定義（弾数・連射間隔・リロード時間・弾速・威力・拡散・弾の届く距離）。
+
+視野角・視界の届く距離は全武器共通(constants.PLAYER_FOV_DEGREES / 壁があるまで見える)
+なので、ここでは武器ごとに差がある「弾が実際に届く距離」だけを bullet_range として持つ。
+"""
 
 
 class Weapon:
@@ -14,8 +18,7 @@ class Weapon:
         bullet_damage: int,
         pellet_count: int,
         spread_degrees: float,
-        vision_range: float,
-        fov_degrees: float,
+        bullet_range: float,
     ) -> None:
         self.name = name
         self.image_filename = image_filename            # 横から見た画像(HUD/メニューでのアイコン表示用)
@@ -27,8 +30,7 @@ class Weapon:
         self.bullet_damage = bullet_damage  # 1発(1粒)あたりの威力
         self.pellet_count = pellet_count    # 1トリガーで発射される弾の数(散弾銃は複数)
         self.spread_degrees = spread_degrees  # 弾のばらけ角度(左右合計の幅、度)
-        self.vision_range = vision_range    # 視界(FOV三角形)の届く距離(px)
-        self.fov_degrees = fov_degrees      # 視界(FOV三角形)の開き角度(度)
+        self.bullet_range = bullet_range    # 発射地点からこの距離を超えると弾が消える(武器の射程)
 
 
 # 各武器のステータス。数値はユーザー指定の相対評価(速度/収束の高低など)を
@@ -46,8 +48,7 @@ WEAPONS: list[Weapon] = [
         bullet_damage=20,    # 威力20
         pellet_count=1,
         spread_degrees=4,    # 収束:低(多少ばらける)
-        vision_range=833,    # ナーフ: 元の射程1250の2/3
-        fov_degrees=60,
+        bullet_range=833,    # ナーフ: 元の射程1250の2/3
     ),
     Weapon(
         name="M870",
@@ -60,8 +61,7 @@ WEAPONS: list[Weapon] = [
         bullet_damage=10,    # 5発の散弾で合計威力50(10 x 5)
         pellet_count=5,      # 5発の散弾
         spread_degrees=25,   # 散弾の広がり
-        vision_range=250,    # 射程10 -> 10 * 25px
-        fov_degrees=90,      # 近距離武器なので視野は広め
+        bullet_range=250,    # 射程10 -> 10 * 25px
     ),
     Weapon(
         name="M700",
@@ -74,8 +74,7 @@ WEAPONS: list[Weapon] = [
         bullet_damage=70,    # ボルトアクションライフルらしい高威力
         pellet_count=1,
         spread_degrees=0,    # 精密射撃、ばらけない
-        vision_range=1900,   # 未指定。狙撃銃らしく最長の射程
-        fov_degrees=20,      # スコープのぞき込みのイメージで視野は狭い
+        bullet_range=1900,   # 未指定。狙撃銃らしく最長の射程
     ),
     Weapon(
         name="MP5K",
@@ -88,8 +87,7 @@ WEAPONS: list[Weapon] = [
         bullet_damage=8,     # 未指定。1発は弱いが連射でカバー
         pellet_count=1,
         spread_degrees=5,
-        vision_range=700,    # 未指定。中距離
-        fov_degrees=75,
+        bullet_range=700,    # 未指定。中距離
     ),
 ]
 

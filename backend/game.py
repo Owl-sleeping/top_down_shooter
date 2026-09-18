@@ -21,7 +21,7 @@ from constants import (
     COLOR_GAME_OVER_TEXT, GAME_OVER_FONT_SIZE,
     EXPLOSION_DURATION, EXPLOSION_DAMAGE, EXPLOSION_RING_WIDTH,
     BULLET_DESPAWN_MARGIN,
-    VISION_DARKNESS_ALPHA, VISION_LIGHT_ALPHA,
+    VISION_DARKNESS_ALPHA, VISION_LIGHT_ALPHA, PLAYER_FOV_DEGREES,
 )
 
 
@@ -301,7 +301,7 @@ class Game:
                     self.bullets.append(Bullet(
                         muzzle, direction + spread, owner_id=pid,
                         speed=weapon.bullet_speed, damage=weapon.bullet_damage,
-                        max_range=weapon.vision_range,
+                        max_range=weapon.bullet_range,
                     ))
 
     def update(self, dt: float) -> None:
@@ -448,10 +448,10 @@ class Game:
         # 暗闇用オーバーレイ
         dark_overlay = make_alpha_surface((WIDTH, HEIGHT), fill=(0, 0, 0, VISION_DARKNESS_ALPHA))
 
-        # 視界ポリゴンの作成（自分視点のみ。射程・視野角は装備武器に依存）
+        # 視界ポリゴンの作成（自分視点のみ。視野角は全武器共通、距離の上限は設けず壁まで見える）
         local_weapon = local_player.weapon
-        fov = math.radians(local_weapon.fov_degrees)
-        self.tris = self.vision.get_triangles(center, direction, fov, max_length=local_weapon.vision_range)
+        fov = math.radians(PLAYER_FOV_DEGREES)
+        self.tris = self.vision.get_triangles(center, direction, fov)
         vision_surf = make_alpha_surface((WIDTH, HEIGHT))
         for t in self.tris:
             pygame.draw.polygon(vision_surf, (255, 255, 255, VISION_LIGHT_ALPHA), t)

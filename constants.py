@@ -71,7 +71,8 @@ EXPLOSION_DURATION = 2.0
 EXPLOSION_DAMAGE = 5
 EXPLOSION_RING_WIDTH = 10
 
-# 視界(FOV)。射程(距離)と開き角度は武器ごと(backend/weapons.py)で変わる。
+# 視界(FOV)。全武器共通。距離は上限を設けず、壁に当たるまで見える。
+PLAYER_FOV_DEGREES = 60
 VISION_RAY_COUNT = 80
 VISION_RAY_MAX_LENGTH = 2000
 VISION_DARKNESS_ALPHA = 217  # 0.85 * 255 ≈ 217
