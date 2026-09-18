@@ -12,8 +12,11 @@ def main() -> None:
     clock = pygame.time.Clock()
     font = pygame.font.SysFont("arial", 20, bold=True)
 
-    mode, connection, local_id, game_map = run_menu(screen, clock, font)
-    Game(screen, clock, font, mode=mode, connection=connection, local_id=local_id, game_map=game_map).run()
+    mode, connection, local_id, game_map, weapons = run_menu(screen, clock, font)
+    Game(
+        screen, clock, font,
+        mode=mode, connection=connection, local_id=local_id, game_map=game_map, weapons=weapons,
+    ).run()
 
 
 if __name__ == "__main__":
