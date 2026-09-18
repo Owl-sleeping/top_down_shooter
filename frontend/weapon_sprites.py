@@ -1,14 +1,12 @@
 """武器画像(images/配下)の読み込みと、向きに合わせた回転描画。"""
 
 import math
-from pathlib import Path
 
 import pygame
 
 from backend.weapons import WEAPONS
 from constants import WEAPON_SPRITE_MAX_SIZE
-
-IMAGES_DIR = Path(__file__).resolve().parent.parent / "images"
+from resources import IMAGES_DIR
 
 
 def _load_scaled(filename: str) -> pygame.Surface:

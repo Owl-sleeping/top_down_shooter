@@ -2,8 +2,7 @@
 
 import pygame
 
-from pathlib import Path
-
+from resources import IMAGES_DIR
 from backend.player import Player
 from constants import (
     COLOR_HP_BG, COLOR_HP_FG, COLOR_AMMO_FULL, COLOR_AMMO_EMPTY,
@@ -18,8 +17,6 @@ from constants import (
     INVENTORY_SLOT_COUNT, INVENTORY_SLOT_SIZE, INVENTORY_SLOT_GAP, INVENTORY_ORIGIN,
     INVENTORY_ICON_SIZE,
 )
-
-IMAGES_DIR = Path(__file__).resolve().parent.parent / "images"
 
 # スロット番号(表示順)に対応する所持品の定義。ここに1件足すだけで
 # インベントリスロットに新しいアイテムを割り当てられる。要素が無い
