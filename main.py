@@ -2,6 +2,7 @@ import math
 import sys
 import pygame
 
+from render_utils import make_alpha_surface, draw_rotated_rect
 from constants import (
     WIDTH, HEIGHT, FPS, WINDOW_TITLE,
     COLOR_BG, COLOR_WALL, COLOR_PLAYER, COLOR_BULLET, COLOR_GRENADE, COLOR_GUN,
@@ -117,11 +118,7 @@ class Bullet:
 
     def draw(self, surface):
         # 回転した矩形の描画
-        rect_surf = pygame.Surface((self.width, self.height), pygame.SRCALPHA)
-        rect_surf.fill(COLOR_BULLET)
-        rotated_surf = pygame.transform.rotate(rect_surf, -math.degrees(self.angle))
-        new_rect = rotated_surf.get_rect(center=(self.pos[0], self.pos[1]))
-        surface.blit(rotated_surf, new_rect.topleft)
+        draw_rotated_rect(surface, (self.width, self.height), COLOR_BULLET, self.angle, (self.pos[0], self.pos[1]))
 
     def visible_to(self, triangles):
         # 弾のが視界内にあるか
@@ -338,12 +335,11 @@ def main():
             pygame.draw.rect(screen, COLOR_WALL, w)
 
         # 暗闇用オーバーレイ
-        dark_overlay = pygame.Surface((WIDTH, HEIGHT), pygame.SRCALPHA)
-        dark_overlay.fill((0, 0, 0, VISION_DARKNESS_ALPHA))
+        dark_overlay = make_alpha_surface((WIDTH, HEIGHT), fill=(0, 0, 0, VISION_DARKNESS_ALPHA))
 
         # 視界ポリゴンの作成
         tris = vision.get_triangles(center, direction, fov)
-        vision_surf = pygame.Surface((WIDTH, HEIGHT), pygame.SRCALPHA)
+        vision_surf = make_alpha_surface((WIDTH, HEIGHT))
         for t in tris:
             pygame.draw.polygon(vision_surf, (255, 255, 255, VISION_LIGHT_ALPHA), t)
 
@@ -362,7 +358,7 @@ def main():
         # 爆発エフェクト描画
         for e in explosions:
             alpha = max(0, int(255 * (e.timer / EXPLOSION_DURATION)))
-            exp_surf = pygame.Surface((WIDTH, HEIGHT), pygame.SRCALPHA)
+            exp_surf = make_alpha_surface((WIDTH, HEIGHT))
             pygame.draw.circle(exp_surf, (*COLOR_EXPLOSION, alpha), (int(e.x), int(e.y)), int(e.radius), EXPLOSION_RING_WIDTH)
             screen.blit(exp_surf, (0, 0))
 
@@ -370,11 +366,7 @@ def main():
         pygame.draw.rect(screen, COLOR_PLAYER, player_rect)
 
         # 銃描画
-        gun_surf = pygame.Surface((GUN_LENGTH, GUN_WIDTH), pygame.SRCALPHA)
-        gun_surf.fill(COLOR_GUN)
-        rotated_gun = pygame.transform.rotate(gun_surf, -math.degrees(direction))
-        gun_rect = rotated_gun.get_rect(center=gun_pos)
-        screen.blit(rotated_gun, gun_rect.topleft)
+        draw_rotated_rect(screen, (GUN_LENGTH, GUN_WIDTH), COLOR_GUN, direction, gun_pos)
 
         # HPバー
         pygame.draw.rect(screen, COLOR_HP_BG, (*HP_BAR_POS, *HP_BAR_SIZE))
