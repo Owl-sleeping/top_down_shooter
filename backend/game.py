@@ -156,11 +156,50 @@ class Game:
             self._apply_action(self.local_id, self.players[self.local_id], action, cursor)
 
     def _trigger_rematch(self) -> None:
-        """リマッチ要求。ホスト権威なので、クライアントは要求を送るだけでホストが実際にリセットする。"""
+        """リマッチ要求。まず自分の武器を選び直してから、ホスト権威で試合をリセットする。"""
+        weapon = self._prompt_weapon_reselect()
+        if weapon is None:
+            return  # ESCでキャンセル
+
         if self.mode == "client":
-            self.connection.send({"type": "action", "action": "rematch"})
-        else:
-            self.restart()
+            self.connection.send({"type": "action", "action": "rematch", "weapon": weapon.name})
+            return
+
+        self.weapons[self.local_id] = weapon
+
+        if self.mode == "host":
+            self.connection.send({"type": "action", "action": "rematch_prompt"})
+            if not self._await_client_rematch_weapon():
+                return
+
+        self.restart()
+
+    def _prompt_weapon_reselect(self) -> Weapon | None:
+        from frontend.menu import _select_weapon  # 循環import回避のため遅延import
+        return _select_weapon(self.screen, self.clock, self.font)
+
+    def _await_client_rematch_weapon(self) -> bool:
+        """(ホスト用)クライアントがリマッチ用の武器選択を終えて送り返すまで待つ。
+        ESCでキャンセル、または接続が切れた場合はFalseを返す。"""
+        while True:
+            self.clock.tick(FPS)
+            for event in pygame.event.get():
+                if event.type == pygame.QUIT:
+                    self._quit()
+                if event.type == pygame.KEYDOWN and event.key == pygame.K_ESCAPE:
+                    return False
+
+            if not self.connection.connected:
+                return False
+
+            for msg in self.connection.poll():
+                if msg.get("type") == "action" and msg.get("action") == "rematch":
+                    weapon_name = msg.get("weapon")
+                    if weapon_name:
+                        self.weapons[1] = get_weapon_by_name(weapon_name)
+                    return True
+
+            self.draw()
 
     def _apply_action(self, pid: int, player: Player, action: str, cursor: tuple[int, int]) -> None:
         if action == "grenade":
@@ -184,15 +223,34 @@ class Game:
                     self.remote_input["cursor"] = tuple(msg["cursor"])
                     self.remote_input["fire"] = bool(msg["fire"])
                 elif msg_type == "action":
-                    if msg["action"] == "rematch":
-                        if self.game_over:
-                            self.restart()
-                    else:
-                        cursor = tuple(self.remote_input["cursor"])
-                        self._apply_action(1, self.players[1], msg["action"], cursor)
+                    self._handle_host_action(msg)
             elif self.mode == "client":
                 if msg_type == "snapshot":
                     self.apply_snapshot(msg)
+                elif msg_type == "action" and msg.get("action") == "rematch_prompt":
+                    self._respond_to_rematch_prompt()
+
+    def _handle_host_action(self, msg: dict) -> None:
+        action = msg["action"]
+        if action == "rematch":
+            if not self.game_over:
+                return
+            weapon_name = msg.get("weapon")
+            if weapon_name:
+                self.weapons[1] = get_weapon_by_name(weapon_name)
+            host_weapon = self._prompt_weapon_reselect()
+            if host_weapon is not None:
+                self.weapons[0] = host_weapon
+                self.restart()
+        else:
+            cursor = tuple(self.remote_input["cursor"])
+            self._apply_action(1, self.players[1], action, cursor)
+
+    def _respond_to_rematch_prompt(self) -> None:
+        """(クライアント用)ホストがリマッチを開始した合図を受けて、自分も武器を選び直して送り返す。"""
+        weapon = self._prompt_weapon_reselect()
+        if weapon is not None:
+            self.connection.send({"type": "action", "action": "rematch", "weapon": weapon.name})
 
     def _read_local_input(self) -> tuple[list[float], tuple[int, int], bool]:
         keys = pygame.key.get_pressed()
