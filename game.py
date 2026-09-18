@@ -5,7 +5,7 @@ import sys
 import pygame
 
 from render_utils import make_alpha_surface, draw_rotated_rect
-from vision import Vision
+from vision import Vision, is_point_visible
 from entities import Bullet, Grenade, Explosion
 from player import Player
 from hud import create_item_textures, draw_hud
@@ -44,7 +44,6 @@ class Game:
         self.connection = connection
         self.local_id = local_id
         self.remote_input = {"move": (0.0, 0.0), "cursor": (0, 0), "fire": False}
-        self.winner_id: int | None = None
 
         self.item_textures = create_item_textures()
 
@@ -56,6 +55,15 @@ class Game:
 
         self.vision = Vision(self.walls)
 
+        self.fov = math.radians(PLAYER_FOV_DEGREES)
+        self.tris = []
+        self.disconnected = False
+
+        self._reset_round_state()
+
+    def _reset_round_state(self) -> None:
+        """1試合分の状態(プレイヤー・弾・グレネード・爆発・勝敗)を初期化する。
+        壁配置やネットワーク接続など、試合をまたいで保持すべきものには触れない。"""
         self.players: dict[int, Player] = {0: Player(PLAYER_START_POSITIONS[0])}
         if self.mode != "solo":
             self.players[1] = Player(PLAYER_START_POSITIONS[1])
@@ -64,10 +72,13 @@ class Game:
         self.grenades: list[Grenade] = []
         self.explosions: list[Explosion] = []
 
-        self.fov = math.radians(PLAYER_FOV_DEGREES)
-        self.tris = []
         self.game_over = False
-        self.disconnected = False
+        self.winner_id = None
+
+    def restart(self) -> None:
+        """リマッチ。ソロ/ホストはその場で試合状態をリセットする
+        (ホストならこの直後に送られるスナップショットでクライアントにも反映される)。"""
+        self._reset_round_state()
 
     def run(self) -> None:
         while True:
@@ -122,6 +133,10 @@ class Game:
                 if event.key == pygame.K_2:
                     self._trigger_action("medkit")
 
+                # リマッチ：R（ゲーム終了後のみ）
+                if event.key == pygame.K_r and self.game_over and not self.disconnected:
+                    self._trigger_rematch()
+
             elif event.type == pygame.MOUSEBUTTONDOWN:
                 # リロード：マウス右
                 if event.button == 3:
@@ -135,6 +150,13 @@ class Game:
         else:
             cursor = pygame.mouse.get_pos()
             self._apply_action(self.local_id, self.players[self.local_id], action, cursor)
+
+    def _trigger_rematch(self) -> None:
+        """リマッチ要求。ホスト権威なので、クライアントは要求を送るだけでホストが実際にリセットする。"""
+        if self.mode == "client":
+            self.connection.send({"type": "action", "action": "rematch"})
+        else:
+            self.restart()
 
     def _apply_action(self, pid: int, player: Player, action: str, cursor: tuple[int, int]) -> None:
         if action == "grenade":
@@ -158,8 +180,12 @@ class Game:
                     self.remote_input["cursor"] = tuple(msg["cursor"])
                     self.remote_input["fire"] = bool(msg["fire"])
                 elif msg_type == "action":
-                    cursor = tuple(self.remote_input["cursor"])
-                    self._apply_action(1, self.players[1], msg["action"], cursor)
+                    if msg["action"] == "rematch":
+                        if self.game_over:
+                            self.restart()
+                    else:
+                        cursor = tuple(self.remote_input["cursor"])
+                        self._apply_action(1, self.players[1], msg["action"], cursor)
             elif self.mode == "client":
                 if msg_type == "snapshot":
                     self.apply_snapshot(msg)
@@ -371,14 +397,18 @@ class Game:
             pygame.draw.circle(exp_surf, (*COLOR_EXPLOSION, alpha), (int(e.x), int(e.y)), int(e.radius), EXPLOSION_RING_WIDTH)
             screen.blit(exp_surf, (0, 0))
 
-        # プレイヤー・銃描画（自分=白、相手=赤）
-        for pid, p in self.players.items():
-            color = COLOR_PLAYER if pid == self.local_id else COLOR_ENEMY_PLAYER
-            pygame.draw.rect(screen, color, p.rect)
-            draw_rotated_rect(screen, (GUN_LENGTH, GUN_WIDTH), COLOR_GUN, p.direction, p.gun_pos)
+        # 自分は常に描画
+        pygame.draw.rect(screen, COLOR_PLAYER, local_player.rect)
+        draw_rotated_rect(screen, (GUN_LENGTH, GUN_WIDTH), COLOR_GUN, local_player.direction, local_player.gun_pos)
 
+        # 敵は自分の視界(FOV三角形)内にいる時だけ描画する
         enemy = next((p for pid, p in self.players.items() if pid != self.local_id), None)
-        draw_hud(screen, self.font, local_player, self.item_textures, enemy=enemy)
+        enemy_visible = enemy is not None and is_point_visible(enemy.rect.center, self.tris)
+        if enemy_visible:
+            pygame.draw.rect(screen, COLOR_ENEMY_PLAYER, enemy.rect)
+            draw_rotated_rect(screen, (GUN_LENGTH, GUN_WIDTH), COLOR_GUN, enemy.direction, enemy.gun_pos)
+
+        draw_hud(screen, self.font, local_player, self.item_textures, enemy=enemy if enemy_visible else None)
 
         if self.disconnected:
             self._draw_disconnected()
@@ -409,3 +439,6 @@ class Game:
 
         txt = self.game_over_font.render(text, True, COLOR_GAME_OVER_TEXT)
         self.screen.blit(txt, txt.get_rect(center=(WIDTH // 2, HEIGHT // 2)))
+
+        hint = self.font.render("Press R to rematch", True, COLOR_PLAYER)
+        self.screen.blit(hint, hint.get_rect(center=(WIDTH // 2, HEIGHT // 2 + GAME_OVER_FONT_SIZE)))

@@ -4,6 +4,7 @@ import math
 import pygame
 
 from render_utils import draw_rotated_rect
+from vision import is_point_visible
 from constants import (
     COLOR_BULLET, COLOR_GRENADE,
     BULLET_SPEED, BULLET_WIDTH, BULLET_HEIGHT,
@@ -36,25 +37,8 @@ class Bullet:
         draw_rotated_rect(surface, (self.width, self.height), COLOR_BULLET, self.angle, self.pos)
 
     def visible_to(self, triangles: list[list[Point]]) -> bool:
-        # 弾のが視界内にあるか
-        px, py = self.pos.x, self.pos.y
-        for tri in triangles:
-            if self.point_in_triangle((px, py), tri[0], tri[1], tri[2]):
-                return True
-        return False
-
-    @staticmethod
-    def point_in_triangle(pt: Point, v1: Point, v2: Point, v3: Point) -> bool:
-        def sign(p1: Point, p2: Point, p3: Point) -> float:
-            return (p1[0] - p3[0]) * (p2[1] - p3[1]) - (p2[0] - p3[0]) * (p1[1] - p3[1])
-
-        d1 = sign(pt, v1, v2)
-        d2 = sign(pt, v2, v3)
-        d3 = sign(pt, v3, v1)
-
-        has_neg = (d1 < 0) or (d2 < 0) or (d3 < 0)
-        has_pos = (d1 > 0) or (d2 > 0) or (d3 > 0)
-        return not (has_neg and has_pos)
+        # 弾が視界内にあるか
+        return is_point_visible((self.pos.x, self.pos.y), triangles)
 
 
 class Grenade:

@@ -9,6 +9,25 @@ from constants import VISION_RAY_COUNT, VISION_RAY_MAX_LENGTH
 Point = tuple[float, float]
 
 
+def point_in_triangle(pt: Point, v1: Point, v2: Point, v3: Point) -> bool:
+    def sign(p1: Point, p2: Point, p3: Point) -> float:
+        return (p1[0] - p3[0]) * (p2[1] - p3[1]) - (p2[0] - p3[0]) * (p1[1] - p3[1])
+
+    d1 = sign(pt, v1, v2)
+    d2 = sign(pt, v2, v3)
+    d3 = sign(pt, v3, v1)
+
+    has_neg = (d1 < 0) or (d2 < 0) or (d3 < 0)
+    has_pos = (d1 > 0) or (d2 > 0) or (d3 > 0)
+    return not (has_neg and has_pos)
+
+
+def is_point_visible(point: Point, triangles: list[list[Point]]) -> bool:
+    """点がFOV三角形群(壁でのレイキャスト結果)のいずれかの内側にあるか。
+    レイ自体が壁で遮られて短くなっているため、この判定はFOV角度と壁の遮蔽の両方を兼ねる。"""
+    return any(point_in_triangle(point, tri[0], tri[1], tri[2]) for tri in triangles)
+
+
 class Vision:
     def __init__(self, walls: list[pygame.Rect]) -> None:
         self.walls = walls
