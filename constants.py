@@ -47,10 +47,10 @@ MEDKIT_HEAL_AMOUNT = 25
 # ネットワーク
 NETWORK_PORT = 5555
 
-# 中継サーバー(relay_server/)のWebSocketアドレス。
-# relay_server/server.py を無料ホスティング(Replit等)にデプロイしたら、
-# そこで発行される公開URLに書き換えること(例: "wss://your-app.username.repl.co")。
-RELAY_URL = "ws://127.0.0.1:8765"
+# 中継サーバー(relay_server/)のWebSocketアドレス。Replitにデプロイ済み。
+# 無料プランは29日で公開が失効するため、その際はReplitで再公開しURLを確認すること
+# (ドメイン自体は変わらない限りこのままでよい)。
+RELAY_URL = "wss://2-dgame--owl-getup.replit.app"
 
 # 武器（弾数・連射間隔・リロード時間・弾速・威力・視界は backend/weapons.py で武器ごとに管理）
 BULLET_WIDTH = 24
