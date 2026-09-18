@@ -67,11 +67,20 @@ class Game:
         self.fov = math.radians(PLAYER_FOV_DEGREES)
         self.tris = []
         self.game_over = False
+        self.disconnected = False
 
     def run(self) -> None:
         while True:
             dt = self.clock.tick(FPS) / 1000.0
             self.handle_events()
+
+            if self.connection is not None and not self.connection.connected:
+                self.disconnected = True
+
+            if self.disconnected:
+                self.draw()
+                continue
+
             self._poll_network()
 
             if self.mode == "client":
@@ -370,10 +379,16 @@ class Game:
 
         draw_hud(screen, self.font, local_player, self.item_textures)
 
-        if self.game_over:
+        if self.disconnected:
+            self._draw_disconnected()
+        elif self.game_over:
             self._draw_game_over()
 
         pygame.display.flip()
+
+    def _draw_disconnected(self) -> None:
+        txt = self.game_over_font.render("CONNECTION LOST", True, COLOR_GAME_OVER_TEXT)
+        self.screen.blit(txt, txt.get_rect(center=(WIDTH // 2, HEIGHT // 2)))
 
     def _determine_winner(self) -> None:
         if len(self.players) < 2:
