@@ -46,7 +46,7 @@ WEAPONS: list[Weapon] = [
         bullet_damage=20,    # 威力20
         pellet_count=1,
         spread_degrees=4,    # 収束:低(多少ばらける)
-        vision_range=1250,   # 射程50 -> 50 * 25px
+        vision_range=833,    # ナーフ: 元の射程1250の2/3
         fov_degrees=60,
     ),
     Weapon(
