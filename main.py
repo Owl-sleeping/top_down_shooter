@@ -2,24 +2,37 @@ import math
 import sys
 import pygame
 
+from constants import (
+    WIDTH, HEIGHT, FPS, WINDOW_TITLE,
+    COLOR_BG, COLOR_WALL, COLOR_PLAYER, COLOR_BULLET, COLOR_GRENADE, COLOR_GUN,
+    COLOR_EXPLOSION, COLOR_HP_BG, COLOR_HP_FG, COLOR_AMMO_FULL, COLOR_AMMO_EMPTY,
+    COLOR_RELOAD_BG, COLOR_RELOAD_FG, COLOR_RELOAD_TEXT,
+    COLOR_SLOT_BG, COLOR_SLOT_BORDER, COLOR_SLOT_NUMBER, COLOR_COUNT_TEXT, COLOR_COUNT_BG,
+    COLOR_GRENADE_BAR, COLOR_MEDKIT_BAR,
+    COLOR_GRENADE_ICON, COLOR_MEDKIT_ICON_BODY, COLOR_MEDKIT_ICON_CROSS,
+    PLAYER_SIZE, PLAYER_SPEED, PLAYER_MAX_HP, MEDKIT_HEAL_AMOUNT, PLAYER_START_POS,
+    MAX_AMMO, BULLET_SPEED, BULLET_WIDTH, BULLET_HEIGHT, FIRE_RATE, RELOAD_TIME,
+    GRENADE_THROW_SPEED, GRENADE_FRICTION, GRENADE_FUSE_TIME,
+    GRENADE_EXPLOSION_RADIUS, GRENADE_VISUAL_RADIUS,
+    EXPLOSION_DURATION, EXPLOSION_DAMAGE, EXPLOSION_RING_WIDTH,
+    PLAYER_FOV_DEGREES, VISION_RAY_COUNT, VISION_RAY_MAX_LENGTH,
+    VISION_DARKNESS_ALPHA, VISION_LIGHT_ALPHA,
+    GUN_LENGTH, GUN_WIDTH, GUN_FORWARD_OFFSET, GUN_SIDE_OFFSET, GUN_MUZZLE_OFFSET,
+    MAX_GRENADES, MAX_MEDKITS,
+    HP_BAR_POS, HP_BAR_SIZE, AMMO_BOX_ORIGIN, AMMO_BOX_SIZE, AMMO_BOX_GAP,
+    RELOAD_GAUGE_POS, RELOAD_GAUGE_SIZE, RELOAD_TEXT_POS,
+    INVENTORY_SLOT_COUNT, INVENTORY_SLOT_SIZE, INVENTORY_SLOT_GAP, INVENTORY_ORIGIN,
+    INVENTORY_ICON_SIZE,
+)
+
 
 # 初期化、定数
 
 pygame.init()
-WIDTH, HEIGHT = 1280, 720
 screen = pygame.display.set_mode((WIDTH, HEIGHT))
-pygame.display.set_caption("Top-down Shooter (Pygame Port)")
+pygame.display.set_caption(WINDOW_TITLE)
 clock = pygame.time.Clock()
 
-
-# 色定義
-
-COLOR_BG = (5, 8, 13)
-COLOR_WALL = (128, 140, 153)
-COLOR_PLAYER = (255, 255, 255)
-COLOR_BULLET = (255, 255, 0)
-COLOR_GRENADE = (255, 165, 0)
-COLOR_GUN = (13, 13, 13)
 font = pygame.font.SysFont("arial", 20, bold=True)
 
 
@@ -30,9 +43,12 @@ class Vision:
         self.walls = walls
 
     def ray(self, p, angle):
-        ray_end = (p[0] + math.cos(angle) * 2000, p[1] + math.sin(angle) * 2000)
+        ray_end = (
+            p[0] + math.cos(angle) * VISION_RAY_MAX_LENGTH,
+            p[1] + math.sin(angle) * VISION_RAY_MAX_LENGTH,
+        )
         closest_hit = ray_end
-        min_dist_sq = 2000 ** 2
+        min_dist_sq = VISION_RAY_MAX_LENGTH ** 2
 
         for w in self.walls:
             # 矩形の4辺の取り出す
@@ -69,7 +85,7 @@ class Vision:
 
     def get_triangles(self, p, direction, fov):
         pts = []
-        n = 80
+        n = VISION_RAY_COUNT
         half_fov = fov / 2.0
         start_angle = direction - half_fov
 
@@ -87,10 +103,10 @@ class Bullet:
     def __init__(self, p, angle):
         self.pos = list(p)
         self.angle = angle
-        self.speed = 800
+        self.speed = BULLET_SPEED
         self.vel = [math.cos(angle) * self.speed, math.sin(angle) * self.speed]
         self.alive = True
-        self.width, self.height = 24, 6
+        self.width, self.height = BULLET_WIDTH, BULLET_HEIGHT
 
     def update(self, dt):
         self.pos[0] += self.vel[0] * dt
@@ -132,9 +148,9 @@ class Bullet:
 class Grenade:
     def __init__(self, p, angle):
         self.pos = list(p)
-        self.speed = 500
+        self.speed = GRENADE_THROW_SPEED
         self.vel = [math.cos(angle) * self.speed, math.sin(angle) * self.speed]
-        self.timer = 1.2
+        self.timer = GRENADE_FUSE_TIME
         self.exploded = False
         self.radius = 150
 
@@ -143,8 +159,8 @@ class Grenade:
             return
         self.pos[0] += self.vel[0] * dt
         self.pos[1] += self.vel[1] * dt
-        self.vel[0] *= 0.98
-        self.vel[1] *= 0.98
+        self.vel[0] *= GRENADE_FRICTION
+        self.vel[1] *= GRENADE_FRICTION
 
         self.timer -= dt
         if self.timer <= 0:
@@ -152,7 +168,7 @@ class Grenade:
 
     def draw(self, surface):
         if not self.exploded:
-            pygame.draw.circle(surface, COLOR_GRENADE, (int(self.pos[0]), int(self.pos[1])), 6)
+            pygame.draw.circle(surface, COLOR_GRENADE, (int(self.pos[0]), int(self.pos[1])), GRENADE_VISUAL_RADIUS)
 
     def explosion_circle(self):
         return (self.pos[0], self.pos[1], self.radius * (2.0 / 3.0))
@@ -161,7 +177,7 @@ class Grenade:
 class Explosion:
     def __init__(self, circle_data):
         self.x, self.y, self.radius = circle_data
-        self.timer = 2.0
+        self.timer = EXPLOSION_DURATION
         self.damaged = False
 
     def intersects_rect(self, rect):
@@ -176,16 +192,16 @@ class Explosion:
 # メイン処理
 
 def main():
-    grenade_tex = pygame.Surface((48, 48), pygame.SRCALPHA)
-    pygame.draw.circle(grenade_tex, (255, 140, 0), (24, 24), 20)
-    
-    medkit_tex = pygame.Surface((48, 48), pygame.SRCALPHA)
-    pygame.draw.rect(medkit_tex, (0, 200, 100), (8, 8, 32, 32))
-    pygame.draw.rect(medkit_tex, (255, 255, 255), (20, 12, 8, 24))
-    pygame.draw.rect(medkit_tex, (255, 255, 255), (12, 20, 24, 8))
+    grenade_tex = pygame.Surface(INVENTORY_ICON_SIZE, pygame.SRCALPHA)
+    pygame.draw.circle(grenade_tex, COLOR_GRENADE_ICON, (24, 24), 20)
 
-    grenade_count = 3
-    medkit_count = 2
+    medkit_tex = pygame.Surface(INVENTORY_ICON_SIZE, pygame.SRCALPHA)
+    pygame.draw.rect(medkit_tex, COLOR_MEDKIT_ICON_BODY, (8, 8, 32, 32))
+    pygame.draw.rect(medkit_tex, COLOR_MEDKIT_ICON_CROSS, (20, 12, 8, 24))
+    pygame.draw.rect(medkit_tex, COLOR_MEDKIT_ICON_CROSS, (12, 20, 24, 8))
+
+    grenade_count = MAX_GRENADES
+    medkit_count = MAX_MEDKITS
 
     walls = [
         pygame.Rect(600, 200, 60, 300),
@@ -194,33 +210,33 @@ def main():
     ]
 
     vision = Vision(walls)
-    player_rect = pygame.Rect(200, 360, 36, 36)
+    player_rect = pygame.Rect(PLAYER_START_POS[0], PLAYER_START_POS[1], PLAYER_SIZE, PLAYER_SIZE)
 
     bullets = []
     grenades = []
     explosions = []
 
-    hp = 20
-    max_hp = 20
-    ammo = 10
+    hp = PLAYER_MAX_HP
+    max_hp = PLAYER_MAX_HP
+    ammo = MAX_AMMO
     timer = 0.0
     reload = False
     reload_time = 0.0
-    reload_max = 1.5
+    reload_max = RELOAD_TIME
 
-    speed = 400.0
-    fov = math.radians(60)
-    fire_rate = 0.12
+    speed = PLAYER_SPEED
+    fov = math.radians(PLAYER_FOV_DEGREES)
+    fire_rate = FIRE_RATE
 
     while True:
-        dt = clock.tick(60) / 1000.0
+        dt = clock.tick(FPS) / 1000.0
 
         # イベント処理
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
                 pygame.quit()
                 sys.exit()
-            
+
             elif event.type == pygame.KEYDOWN:
                 # グレネード：１
                 if event.key == pygame.K_1 and grenade_count > 0:
@@ -229,15 +245,15 @@ def main():
                     cursor = pygame.mouse.get_pos()
                     direction = math.atan2(cursor[1] - center[1], cursor[0] - center[0])
                     grenades.append(Grenade(center, direction))
-                
+
                 # 回復：２
                 if event.key == pygame.K_2 and medkit_count > 0:
                     medkit_count -= 1
-                    hp = min(hp + 5, max_hp)
+                    hp = min(hp + MEDKIT_HEAL_AMOUNT, max_hp)
 
             elif event.type == pygame.MOUSEBUTTONDOWN:
                 # リロード：マウス右
-                if event.button == 3 and ammo < 10 and not reload:
+                if event.button == 3 and ammo < MAX_AMMO and not reload:
                     reload = True
                     reload_time = reload_max
 
@@ -266,12 +282,12 @@ def main():
 
         side = (math.cos(direction + math.radians(90)), math.sin(direction + math.radians(90)))
         gun_pos = (
-            center[0] + math.cos(direction) * 20 + side[0] * 15,
-            center[1] + math.sin(direction) * 20 + side[1] * 15
+            center[0] + math.cos(direction) * GUN_FORWARD_OFFSET + side[0] * GUN_SIDE_OFFSET,
+            center[1] + math.sin(direction) * GUN_FORWARD_OFFSET + side[1] * GUN_SIDE_OFFSET
         )
         muzzle = (
-            gun_pos[0] + math.cos(direction) * 30,
-            gun_pos[1] + math.sin(direction) * 30
+            gun_pos[0] + math.cos(direction) * GUN_MUZZLE_OFFSET,
+            gun_pos[1] + math.sin(direction) * GUN_MUZZLE_OFFSET
         )
 
         timer -= dt
@@ -293,7 +309,7 @@ def main():
         # 爆発処理
         for e in explosions:
             if not e.damaged and e.intersects_rect(player_rect):
-                hp = max(0, hp - 5)
+                hp = max(0, hp - EXPLOSION_DAMAGE)
                 e.damaged = True
             e.timer -= dt
         explosions = [e for e in explosions if e.timer > 0]
@@ -302,7 +318,7 @@ def main():
         if reload:
             reload_time -= dt
             if reload_time <= 0:
-                ammo = 10
+                ammo = MAX_AMMO
                 reload = False
 
         # 弾丸更新、壁判定
@@ -323,14 +339,14 @@ def main():
 
         # 暗闇用オーバーレイ
         dark_overlay = pygame.Surface((WIDTH, HEIGHT), pygame.SRCALPHA)
-        dark_overlay.fill((0, 0, 0, 217)) # 0.85 * 255 ≈ 217
+        dark_overlay.fill((0, 0, 0, VISION_DARKNESS_ALPHA))
 
         # 視界ポリゴンの作成
         tris = vision.get_triangles(center, direction, fov)
         vision_surf = pygame.Surface((WIDTH, HEIGHT), pygame.SRCALPHA)
         for t in tris:
-            pygame.draw.polygon(vision_surf, (255, 255, 255, 90), t)
-        
+            pygame.draw.polygon(vision_surf, (255, 255, 255, VISION_LIGHT_ALPHA), t)
+
         screen.blit(dark_overlay, (0, 0))
         screen.blit(vision_surf, (0, 0))
 
@@ -345,68 +361,68 @@ def main():
 
         # 爆発エフェクト描画
         for e in explosions:
-            alpha = max(0, int(255 * (e.timer / 2.0)))
+            alpha = max(0, int(255 * (e.timer / EXPLOSION_DURATION)))
             exp_surf = pygame.Surface((WIDTH, HEIGHT), pygame.SRCALPHA)
-            pygame.draw.circle(exp_surf, (255, 76, 25, alpha), (int(e.x), int(e.y)), int(e.radius), 10)
+            pygame.draw.circle(exp_surf, (*COLOR_EXPLOSION, alpha), (int(e.x), int(e.y)), int(e.radius), EXPLOSION_RING_WIDTH)
             screen.blit(exp_surf, (0, 0))
 
         # プレイヤー描画
         pygame.draw.rect(screen, COLOR_PLAYER, player_rect)
 
         # 銃描画
-        gun_surf = pygame.Surface((50, 12), pygame.SRCALPHA)
+        gun_surf = pygame.Surface((GUN_LENGTH, GUN_WIDTH), pygame.SRCALPHA)
         gun_surf.fill(COLOR_GUN)
         rotated_gun = pygame.transform.rotate(gun_surf, -math.degrees(direction))
         gun_rect = rotated_gun.get_rect(center=gun_pos)
         screen.blit(rotated_gun, gun_rect.topleft)
 
         # HPバー
-        pygame.draw.rect(screen, (204, 25, 25), (20, 20, 250, 20))
-        pygame.draw.rect(screen, (25, 255, 25), (20, 20, 250 * (hp / max_hp), 20))
+        pygame.draw.rect(screen, COLOR_HP_BG, (*HP_BAR_POS, *HP_BAR_SIZE))
+        pygame.draw.rect(screen, COLOR_HP_FG, (HP_BAR_POS[0], HP_BAR_POS[1], HP_BAR_SIZE[0] * (hp / max_hp), HP_BAR_SIZE[1]))
 
         # マガジン
-        for i in range(10):
-            box = pygame.Rect(20 + i * 25, 60, 18, 30)
+        for i in range(MAX_AMMO):
+            box = pygame.Rect(AMMO_BOX_ORIGIN[0] + i * AMMO_BOX_GAP, AMMO_BOX_ORIGIN[1], *AMMO_BOX_SIZE)
             if i < ammo:
-                pygame.draw.rect(screen, (255, 204, 0), box)
+                pygame.draw.rect(screen, COLOR_AMMO_FULL, box)
             else:
-                pygame.draw.rect(screen, (128, 128, 128), box, 2)
+                pygame.draw.rect(screen, COLOR_AMMO_EMPTY, box, 2)
 
         # リロードゲージ
         if reload:
             rate = max(0.0, min(1.0, 1.0 - (reload_time / reload_max)))
-            pygame.draw.rect(screen, (50, 50, 50), (20, 110, 200, 10))
-            pygame.draw.rect(screen, (50, 255, 50), (20, 110, 200 * rate, 10))
-            txt = font.render("RELOAD", True, (255, 255, 255))
-            screen.blit(txt, (230, 105))
+            pygame.draw.rect(screen, COLOR_RELOAD_BG, (*RELOAD_GAUGE_POS, *RELOAD_GAUGE_SIZE))
+            pygame.draw.rect(screen, COLOR_RELOAD_FG, (RELOAD_GAUGE_POS[0], RELOAD_GAUGE_POS[1], RELOAD_GAUGE_SIZE[0] * rate, RELOAD_GAUGE_SIZE[1]))
+            txt = font.render("RELOAD", True, COLOR_RELOAD_TEXT)
+            screen.blit(txt, RELOAD_TEXT_POS)
 
         # インベントリ
-        for i in range(3):
-            slot = pygame.Rect(900 + i * 90, 600, 70, 70)
-            pygame.draw.rect(screen, (25, 25, 25), slot)
-            pygame.draw.rect(screen, (200, 200, 200), slot, 3)
+        for i in range(INVENTORY_SLOT_COUNT):
+            slot = pygame.Rect(INVENTORY_ORIGIN[0] + i * INVENTORY_SLOT_GAP, INVENTORY_ORIGIN[1], *INVENTORY_SLOT_SIZE)
+            pygame.draw.rect(screen, COLOR_SLOT_BG, slot)
+            pygame.draw.rect(screen, COLOR_SLOT_BORDER, slot, 3)
 
             # アイテム表示
             if i == 0:
                 screen.blit(grenade_tex, grenade_tex.get_rect(center=slot.center))
-                txt = font.render(str(grenade_count), True, (255, 255, 255))
+                txt = font.render(str(grenade_count), True, COLOR_COUNT_TEXT)
                 screen.blit(txt, txt.get_rect(center=(slot.centerx + 18, slot.centery + 18)))
-                
+
                 count_box = pygame.Rect(slot.x + 10, slot.y + 55, 50, 12)
-                pygame.draw.rect(screen, (50, 50, 50), count_box)
-                pygame.draw.rect(screen, (255, 153, 0), (count_box.x, count_box.y, 50.0 * grenade_count / 3.0, 12))
+                pygame.draw.rect(screen, COLOR_COUNT_BG, count_box)
+                pygame.draw.rect(screen, COLOR_GRENADE_BAR, (count_box.x, count_box.y, 50.0 * grenade_count / MAX_GRENADES, 12))
 
             elif i == 1:
                 screen.blit(medkit_tex, medkit_tex.get_rect(center=slot.center))
-                txt = font.render(str(medkit_count), True, (255, 255, 255))
+                txt = font.render(str(medkit_count), True, COLOR_COUNT_TEXT)
                 screen.blit(txt, txt.get_rect(center=(slot.centerx + 18, slot.centery + 18)))
-                
+
                 count_box = pygame.Rect(slot.x + 10, slot.y + 55, 50, 12)
-                pygame.draw.rect(screen, (50, 50, 50), count_box)
-                pygame.draw.rect(screen, (50, 255, 76), (count_box.x, count_box.y, 50.0 * medkit_count / 2.0, 12))
+                pygame.draw.rect(screen, COLOR_COUNT_BG, count_box)
+                pygame.draw.rect(screen, COLOR_MEDKIT_BAR, (count_box.x, count_box.y, 50.0 * medkit_count / MAX_MEDKITS, 12))
 
             # スロット番号
-            num_txt = font.render(str(i + 1), True, (150, 150, 150))
+            num_txt = font.render(str(i + 1), True, COLOR_SLOT_NUMBER)
             screen.blit(num_txt, (slot.x + 5, slot.y + 5))
 
         pygame.display.flip()
