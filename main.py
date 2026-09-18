@@ -3,20 +3,20 @@ import sys
 import pygame
 
 from render_utils import make_alpha_surface, draw_rotated_rect
+from vision import Vision
+from entities import Bullet, Grenade, Explosion
 from constants import (
     WIDTH, HEIGHT, FPS, WINDOW_TITLE,
-    COLOR_BG, COLOR_WALL, COLOR_PLAYER, COLOR_BULLET, COLOR_GRENADE, COLOR_GUN,
+    COLOR_BG, COLOR_WALL, COLOR_PLAYER, COLOR_GUN,
     COLOR_EXPLOSION, COLOR_HP_BG, COLOR_HP_FG, COLOR_AMMO_FULL, COLOR_AMMO_EMPTY,
     COLOR_RELOAD_BG, COLOR_RELOAD_FG, COLOR_RELOAD_TEXT,
     COLOR_SLOT_BG, COLOR_SLOT_BORDER, COLOR_SLOT_NUMBER, COLOR_COUNT_TEXT, COLOR_COUNT_BG,
     COLOR_GRENADE_BAR, COLOR_MEDKIT_BAR,
     COLOR_GRENADE_ICON, COLOR_MEDKIT_ICON_BODY, COLOR_MEDKIT_ICON_CROSS,
     PLAYER_SIZE, PLAYER_SPEED, PLAYER_MAX_HP, MEDKIT_HEAL_AMOUNT, PLAYER_START_POS,
-    MAX_AMMO, BULLET_SPEED, BULLET_WIDTH, BULLET_HEIGHT, FIRE_RATE, RELOAD_TIME,
-    GRENADE_THROW_SPEED, GRENADE_FRICTION, GRENADE_FUSE_TIME,
-    GRENADE_EXPLOSION_RADIUS, GRENADE_VISUAL_RADIUS,
+    MAX_AMMO, FIRE_RATE, RELOAD_TIME,
     EXPLOSION_DURATION, EXPLOSION_DAMAGE, EXPLOSION_RING_WIDTH,
-    PLAYER_FOV_DEGREES, VISION_RAY_COUNT, VISION_RAY_MAX_LENGTH,
+    PLAYER_FOV_DEGREES,
     VISION_DARKNESS_ALPHA, VISION_LIGHT_ALPHA,
     GUN_LENGTH, GUN_WIDTH, GUN_FORWARD_OFFSET, GUN_SIDE_OFFSET, GUN_MUZZLE_OFFSET,
     MAX_GRENADES, MAX_MEDKITS,
@@ -35,152 +35,6 @@ pygame.display.set_caption(WINDOW_TITLE)
 clock = pygame.time.Clock()
 
 font = pygame.font.SysFont("arial", 20, bold=True)
-
-
-# クラス定義
-
-class Vision:
-    def __init__(self, walls):
-        self.walls = walls
-
-    def ray(self, p, angle):
-        ray_end = (
-            p[0] + math.cos(angle) * VISION_RAY_MAX_LENGTH,
-            p[1] + math.sin(angle) * VISION_RAY_MAX_LENGTH,
-        )
-        closest_hit = ray_end
-        min_dist_sq = VISION_RAY_MAX_LENGTH ** 2
-
-        for w in self.walls:
-            # 矩形の4辺の取り出す
-            lines = [
-                ((w.left, w.top), (w.right, w.top)),
-                ((w.right, w.top), (w.right, w.bottom)),
-                ((w.right, w.bottom), (w.left, w.bottom)),
-                ((w.left, w.bottom), (w.left, w.top))
-            ]
-            for l_start, l_end in lines:
-                hit = self.line_intersection((p, ray_end), (l_start, l_end))
-                if hit:
-                    dist_sq = (hit[0] - p[0])**2 + (hit[1] - p[1])**2
-                    if dist_sq < min_dist_sq:
-                        min_dist_sq = dist_sq
-                        closest_hit = hit
-        return closest_hit
-
-    @staticmethod
-    def line_intersection(line1, line2):
-        (x1, y1), (x2, y2) = line1
-        (x3, y3), (x4, y4) = line2
-
-        denom = (x1 - x2) * (y3 - y4) - (y1 - y2) * (x3 - x4)
-        if denom == 0:
-            return None
-
-        t = ((x1 - x3) * (y3 - y4) - (y1 - y3) * (x3 - x4)) / denom
-        u = -((x1 - x2) * (y1 - y3) - (y1 - y2) * (x1 - x3)) / denom
-
-        if 0 <= t <= 1 and 0 <= u <= 1:
-            return (x1 + t * (x2 - x1), y1 + t * (y2 - y1))
-        return None
-
-    def get_triangles(self, p, direction, fov):
-        pts = []
-        n = VISION_RAY_COUNT
-        half_fov = fov / 2.0
-        start_angle = direction - half_fov
-
-        for i in range(n):
-            angle = start_angle + (fov * i / (n - 1))
-            pts.append(self.ray(p, angle))
-
-        triangles = []
-        for i in range(n - 1):
-            triangles.append([p, pts[i], pts[i + 1]])
-        return triangles
-
-
-class Bullet:
-    def __init__(self, p, angle):
-        self.pos = pygame.Vector2(p)
-        self.angle = angle
-        self.speed = BULLET_SPEED
-        self.vel = pygame.Vector2(math.cos(angle), math.sin(angle)) * self.speed
-        self.alive = True
-        self.width, self.height = BULLET_WIDTH, BULLET_HEIGHT
-
-    def update(self, dt):
-        self.pos += self.vel * dt
-
-    def get_rect(self):
-        return pygame.Rect(self.pos.x - self.width / 2, self.pos.y - self.height / 2, self.width, self.height)
-
-    def draw(self, surface):
-        # 回転した矩形の描画
-        draw_rotated_rect(surface, (self.width, self.height), COLOR_BULLET, self.angle, self.pos)
-
-    def visible_to(self, triangles):
-        # 弾のが視界内にあるか
-        px, py = self.pos.x, self.pos.y
-        for tri in triangles:
-            if self.point_in_triangle((px, py), tri[0], tri[1], tri[2]):
-                return True
-        return False
-
-    @staticmethod
-    def point_in_triangle(pt, v1, v2, v3):
-        def sign(p1, p2, p3):
-            return (p1[0] - p3[0]) * (p2[1] - p3[1]) - (p2[0] - p3[0]) * (p1[1] - p3[1])
-
-        d1 = sign(pt, v1, v2)
-        d2 = sign(pt, v2, v3)
-        d3 = sign(pt, v3, v1)
-
-        has_neg = (d1 < 0) or (d2 < 0) or (d3 < 0)
-        has_pos = (d1 > 0) or (d2 > 0) or (d3 > 0)
-        return not (has_neg and has_pos)
-
-
-class Grenade:
-    def __init__(self, p, angle):
-        self.pos = pygame.Vector2(p)
-        self.speed = GRENADE_THROW_SPEED
-        self.vel = pygame.Vector2(math.cos(angle), math.sin(angle)) * self.speed
-        self.timer = GRENADE_FUSE_TIME
-        self.exploded = False
-        self.explosion_radius = GRENADE_EXPLOSION_RADIUS
-
-    def update(self, dt):
-        if self.exploded:
-            return
-        self.pos += self.vel * dt
-        self.vel *= GRENADE_FRICTION
-
-        self.timer -= dt
-        if self.timer <= 0:
-            self.exploded = True
-
-    def draw(self, surface):
-        if not self.exploded:
-            pygame.draw.circle(surface, COLOR_GRENADE, (int(self.pos.x), int(self.pos.y)), GRENADE_VISUAL_RADIUS)
-
-    def explosion_circle(self):
-        return (self.pos.x, self.pos.y, self.explosion_radius)
-
-
-class Explosion:
-    def __init__(self, circle_data):
-        self.x, self.y, self.radius = circle_data
-        self.timer = EXPLOSION_DURATION
-        self.damaged = False
-
-    def intersects_rect(self, rect):
-        # 円と矩形の当たり判定
-        closest_x = max(rect.left, min(self.x, rect.right))
-        closest_y = max(rect.top, min(self.y, rect.bottom))
-        dist_x = self.x - closest_x
-        dist_y = self.y - closest_y
-        return (dist_x**2 + dist_y**2) < (self.radius**2)
 
 
 # メイン処理
