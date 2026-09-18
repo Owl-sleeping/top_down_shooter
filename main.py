@@ -1,8 +1,8 @@
 import pygame
 
 from constants import WIDTH, HEIGHT, WINDOW_TITLE
-from game import Game
-from menu import run_menu
+from backend.game import Game
+from frontend.menu import run_menu
 
 
 def main() -> None:

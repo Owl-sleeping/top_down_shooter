@@ -3,8 +3,8 @@
 import math
 import pygame
 
-from render_utils import draw_rotated_rect
-from vision import is_point_visible
+from frontend.render_utils import draw_rotated_rect
+from frontend.vision import is_point_visible
 from constants import (
     COLOR_BULLET, COLOR_GRENADE,
     BULLET_SPEED, BULLET_WIDTH, BULLET_HEIGHT,

@@ -4,7 +4,7 @@ import socket
 
 import pygame
 
-from network import Client, Connection, Host
+from backend.network import Client, Connection, Host
 from constants import WIDTH, HEIGHT, NETWORK_PORT, COLOR_BG, COLOR_PLAYER
 
 # "arial"はCJKグリフを持たないため、日本語表示にはIME非依存で日本語Windowsに

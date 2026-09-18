@@ -4,12 +4,12 @@ import math
 import sys
 import pygame
 
-from render_utils import make_alpha_surface, draw_rotated_rect
-from vision import Vision, is_point_visible
-from entities import Bullet, Grenade, Explosion
-from player import Player
-from hud import create_item_textures, draw_hud
-from network import Connection
+from frontend.render_utils import make_alpha_surface, draw_rotated_rect
+from frontend.vision import Vision, is_point_visible
+from backend.entities import Bullet, Grenade, Explosion
+from backend.player import Player
+from frontend.hud import create_item_textures, draw_hud
+from backend.network import Connection
 from constants import (
     WIDTH, HEIGHT, FPS,
     COLOR_BG, COLOR_WALL, COLOR_PLAYER, COLOR_ENEMY_PLAYER, COLOR_GUN, COLOR_EXPLOSION,
