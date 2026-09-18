@@ -8,21 +8,19 @@ from frontend.render_utils import make_alpha_surface, draw_rotated_rect
 from frontend.vision import Vision, is_point_visible
 from backend.entities import Bullet, Grenade, Explosion
 from backend.player import Player
+from backend.maps import GameMap, MAPS
 from frontend.hud import create_item_textures, draw_hud
 from backend.network import Connection
 from constants import (
     WIDTH, HEIGHT, FPS,
     COLOR_BG, COLOR_WALL, COLOR_PLAYER, COLOR_ENEMY_PLAYER, COLOR_GUN, COLOR_EXPLOSION,
     COLOR_GAME_OVER_TEXT, GAME_OVER_FONT_SIZE,
-    PLAYER_START_POS, PLAYER2_START_POS,
     EXPLOSION_DURATION, EXPLOSION_DAMAGE, EXPLOSION_RING_WIDTH,
     BULLET_DESPAWN_MARGIN, BULLET_DAMAGE,
     PLAYER_FOV_DEGREES,
     VISION_DARKNESS_ALPHA, VISION_LIGHT_ALPHA,
     GUN_LENGTH, GUN_WIDTH,
 )
-
-PLAYER_START_POSITIONS = {0: PLAYER_START_POS, 1: PLAYER2_START_POS}
 
 
 class Game:
@@ -34,6 +32,7 @@ class Game:
         mode: str = "solo",
         connection: Connection | None = None,
         local_id: int = 0,
+        game_map: GameMap | None = None,
     ) -> None:
         self.screen = screen
         self.clock = clock
@@ -47,11 +46,8 @@ class Game:
 
         self.item_textures = create_item_textures()
 
-        self.walls = [
-            pygame.Rect(600, 200, 60, 300),
-            pygame.Rect(300, 100, 120, 50),
-            pygame.Rect(850, 450, 200, 80)
-        ]
+        self.game_map = game_map or MAPS[0]
+        self.walls = self.game_map.build_wall_rects()
 
         self.vision = Vision(self.walls)
 
@@ -64,9 +60,9 @@ class Game:
     def _reset_round_state(self) -> None:
         """1試合分の状態(プレイヤー・弾・グレネード・爆発・勝敗)を初期化する。
         壁配置やネットワーク接続など、試合をまたいで保持すべきものには触れない。"""
-        self.players: dict[int, Player] = {0: Player(PLAYER_START_POSITIONS[0])}
+        self.players: dict[int, Player] = {0: Player(self.game_map.spawn_positions[0])}
         if self.mode != "solo":
-            self.players[1] = Player(PLAYER_START_POSITIONS[1])
+            self.players[1] = Player(self.game_map.spawn_positions[1])
 
         self.bullets: list[Bullet] = []
         self.grenades: list[Grenade] = []
@@ -291,7 +287,8 @@ class Game:
         物理は一切実行せず、既存のPlayer/Bullet/Grenade/Explosionを描画用の器として再利用する。"""
         for pid_str, pdata in msg["players"].items():
             pid = int(pid_str)
-            player = self.players.setdefault(pid, Player(PLAYER_START_POSITIONS.get(pid, PLAYER_START_POS)))
+            fallback_pos = self.game_map.spawn_positions.get(pid, (0, 0))
+            player = self.players.setdefault(pid, Player(fallback_pos))
             player.rect.center = pdata["pos"]
             player.hp = pdata["hp"]
             player.max_hp = pdata["max_hp"]
