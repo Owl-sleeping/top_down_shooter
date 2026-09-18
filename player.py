@@ -10,9 +10,11 @@ from constants import (
     GUN_FORWARD_OFFSET, GUN_SIDE_OFFSET, GUN_MUZZLE_OFFSET,
 )
 
+Point = tuple[float, float]
+
 
 class Player:
-    def __init__(self, pos):
+    def __init__(self, pos: Point) -> None:
         self.rect = pygame.Rect(pos[0], pos[1], PLAYER_SIZE, PLAYER_SIZE)
         self.speed = PLAYER_SPEED
 
@@ -28,14 +30,14 @@ class Player:
         self.medkit_count = MAX_MEDKITS
 
         self.direction = 0.0
-        self.gun_pos = self.rect.center
-        self.muzzle = self.rect.center
+        self.gun_pos: Point = self.rect.center
+        self.muzzle: Point = self.rect.center
 
     @property
-    def is_dead(self):
+    def is_dead(self) -> bool:
         return self.hp <= 0
 
-    def move(self, move_dir, walls, dt):
+    def move(self, move_dir: Point, walls: list[pygame.Rect], dt: float) -> None:
         """move_dirは(x, y)の入力方向(正規化前)。壁に当たった軸だけ移動を止め、
         直交する軸には引き続き移動できるようにする(壁沿いのスライド移動)。"""
         dx, dy = move_dir
@@ -62,7 +64,7 @@ class Player:
                 elif dy < 0:
                     self.rect.top = w.bottom
 
-    def update_aim(self, cursor_pos):
+    def update_aim(self, cursor_pos: Point) -> None:
         center = self.rect.center
         self.direction = math.atan2(cursor_pos[1] - center[1], cursor_pos[0] - center[0])
 
@@ -76,7 +78,7 @@ class Player:
             self.gun_pos[1] + math.sin(self.direction) * GUN_MUZZLE_OFFSET
         )
 
-    def update_cooldowns(self, dt):
+    def update_cooldowns(self, dt: float) -> None:
         self.fire_timer -= dt
         if self.reload:
             self.reload_time -= dt
@@ -84,7 +86,7 @@ class Player:
                 self.ammo = MAX_AMMO
                 self.reload = False
 
-    def try_fire(self):
+    def try_fire(self) -> tuple[Point, float] | None:
         """発射条件を満たしていれば(銃口位置, 向き)を返し内部状態を消費する。満たさなければNone。"""
         if self.fire_timer <= 0 and self.ammo > 0 and not self.reload:
             self.ammo -= 1
@@ -92,12 +94,12 @@ class Player:
             return (self.muzzle, self.direction)
         return None
 
-    def start_reload(self):
+    def start_reload(self) -> None:
         if self.ammo < MAX_AMMO and not self.reload:
             self.reload = True
             self.reload_time = RELOAD_TIME
 
-    def try_throw_grenade(self, cursor_pos):
+    def try_throw_grenade(self, cursor_pos: Point) -> tuple[Point, float] | None:
         """投擲条件を満たしていれば(発射位置, 向き)を返し内部状態を消費する。満たさなければNone。"""
         if self.grenade_count > 0:
             self.grenade_count -= 1
@@ -106,10 +108,10 @@ class Player:
             return (center, direction)
         return None
 
-    def use_medkit(self):
+    def use_medkit(self) -> None:
         if self.medkit_count > 0:
             self.medkit_count -= 1
             self.hp = min(self.hp + MEDKIT_HEAL_AMOUNT, self.max_hp)
 
-    def take_damage(self, amount):
+    def take_damage(self, amount: int) -> None:
         self.hp = max(0, self.hp - amount)

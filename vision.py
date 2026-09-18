@@ -2,14 +2,18 @@
 
 import math
 
+import pygame
+
 from constants import VISION_RAY_COUNT, VISION_RAY_MAX_LENGTH
+
+Point = tuple[float, float]
 
 
 class Vision:
-    def __init__(self, walls):
+    def __init__(self, walls: list[pygame.Rect]) -> None:
         self.walls = walls
 
-    def ray(self, p, angle):
+    def ray(self, p: Point, angle: float) -> Point:
         ray_end = (
             p[0] + math.cos(angle) * VISION_RAY_MAX_LENGTH,
             p[1] + math.sin(angle) * VISION_RAY_MAX_LENGTH,
@@ -35,7 +39,7 @@ class Vision:
         return closest_hit
 
     @staticmethod
-    def line_intersection(line1, line2):
+    def line_intersection(line1: tuple[Point, Point], line2: tuple[Point, Point]) -> Point | None:
         (x1, y1), (x2, y2) = line1
         (x3, y3), (x4, y4) = line2
 
@@ -50,7 +54,7 @@ class Vision:
             return (x1 + t * (x2 - x1), y1 + t * (y2 - y1))
         return None
 
-    def get_triangles(self, p, direction, fov):
+    def get_triangles(self, p: Point, direction: float, fov: float) -> list[list[Point]]:
         pts = []
         n = VISION_RAY_COUNT
         half_fov = fov / 2.0

@@ -2,6 +2,7 @@
 
 import pygame
 
+from player import Player
 from constants import (
     COLOR_HP_BG, COLOR_HP_FG, COLOR_AMMO_FULL, COLOR_AMMO_EMPTY,
     COLOR_RELOAD_BG, COLOR_RELOAD_FG, COLOR_RELOAD_TEXT,
@@ -25,7 +26,7 @@ INVENTORY_ITEMS = [
 ]
 
 
-def create_item_textures():
+def create_item_textures() -> dict[str, pygame.Surface]:
     """インベントリに表示するアイコンをゲーム開始時に一度だけ生成する。"""
     grenade_tex = pygame.Surface(INVENTORY_ICON_SIZE, pygame.SRCALPHA)
     pygame.draw.circle(grenade_tex, COLOR_GRENADE_ICON, (24, 24), 20)
@@ -38,21 +39,26 @@ def create_item_textures():
     return {"grenade": grenade_tex, "medkit": medkit_tex}
 
 
-def draw_hud(screen, font, player, item_textures):
+def draw_hud(
+    screen: pygame.Surface,
+    font: pygame.font.Font,
+    player: Player,
+    item_textures: dict[str, pygame.Surface],
+) -> None:
     _draw_hp_bar(screen, player)
     _draw_ammo_boxes(screen, player)
     _draw_reload_gauge(screen, font, player)
     _draw_inventory(screen, font, player, item_textures)
 
 
-def _draw_hp_bar(screen, player):
+def _draw_hp_bar(screen: pygame.Surface, player: Player) -> None:
     pygame.draw.rect(screen, COLOR_HP_BG, (*HP_BAR_POS, *HP_BAR_SIZE))
     pygame.draw.rect(screen, COLOR_HP_FG, (
         HP_BAR_POS[0], HP_BAR_POS[1], HP_BAR_SIZE[0] * (player.hp / player.max_hp), HP_BAR_SIZE[1]
     ))
 
 
-def _draw_ammo_boxes(screen, player):
+def _draw_ammo_boxes(screen: pygame.Surface, player: Player) -> None:
     for i in range(MAX_AMMO):
         box = pygame.Rect(AMMO_BOX_ORIGIN[0] + i * AMMO_BOX_GAP, AMMO_BOX_ORIGIN[1], *AMMO_BOX_SIZE)
         if i < player.ammo:
@@ -61,7 +67,7 @@ def _draw_ammo_boxes(screen, player):
             pygame.draw.rect(screen, COLOR_AMMO_EMPTY, box, 2)
 
 
-def _draw_reload_gauge(screen, font, player):
+def _draw_reload_gauge(screen: pygame.Surface, font: pygame.font.Font, player: Player) -> None:
     if not player.reload:
         return
     rate = max(0.0, min(1.0, 1.0 - (player.reload_time / RELOAD_TIME)))
@@ -73,7 +79,12 @@ def _draw_reload_gauge(screen, font, player):
     screen.blit(txt, RELOAD_TEXT_POS)
 
 
-def _draw_inventory(screen, font, player, item_textures):
+def _draw_inventory(
+    screen: pygame.Surface,
+    font: pygame.font.Font,
+    player: Player,
+    item_textures: dict[str, pygame.Surface],
+) -> None:
     for i in range(INVENTORY_SLOT_COUNT):
         slot = pygame.Rect(INVENTORY_ORIGIN[0] + i * INVENTORY_SLOT_GAP, INVENTORY_ORIGIN[1], *INVENTORY_SLOT_SIZE)
         pygame.draw.rect(screen, COLOR_SLOT_BG, slot)

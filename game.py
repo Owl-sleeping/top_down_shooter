@@ -23,7 +23,7 @@ from constants import (
 
 
 class Game:
-    def __init__(self, screen, clock, font):
+    def __init__(self, screen: pygame.Surface, clock: pygame.time.Clock, font: pygame.font.Font) -> None:
         self.screen = screen
         self.clock = clock
         self.font = font
@@ -48,7 +48,7 @@ class Game:
         self.tris = []
         self.game_over = False
 
-    def run(self):
+    def run(self) -> None:
         while True:
             dt = self.clock.tick(FPS) / 1000.0
             self.handle_events()
@@ -60,7 +60,7 @@ class Game:
                     self.game_over = True
             self.draw()
 
-    def handle_events(self):
+    def handle_events(self) -> None:
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
                 pygame.quit()
@@ -89,7 +89,7 @@ class Game:
                 if event.button == 3:
                     self.player.start_reload()
 
-    def handle_input(self, dt):
+    def handle_input(self, dt: float) -> None:
         # キー入力による移動
         keys = pygame.key.get_pressed()
         move = [0.0, 0.0]
@@ -113,7 +113,7 @@ class Game:
                 muzzle, direction = fired
                 self.bullets.append(Bullet(muzzle, direction))
 
-    def update(self, dt):
+    def update(self, dt: float) -> None:
         # グレネード更新
         for g in self.grenades:
             g.update(dt)
@@ -129,7 +129,7 @@ class Game:
         for b in self.bullets:
             b.update(dt)
 
-    def handle_collisions(self):
+    def handle_collisions(self) -> None:
         # 爆発 vs プレイヤー
         for e in self.explosions:
             if not e.damaged and e.intersects_rect(self.player.rect):
@@ -152,7 +152,7 @@ class Game:
                     b.alive = False
         self.bullets = [b for b in self.bullets if b.alive]
 
-    def draw(self):
+    def draw(self) -> None:
         screen = self.screen
         player = self.player
         center = player.rect.center
@@ -205,6 +205,6 @@ class Game:
 
         pygame.display.flip()
 
-    def _draw_game_over(self):
+    def _draw_game_over(self) -> None:
         txt = self.game_over_font.render("GAME OVER", True, COLOR_GAME_OVER_TEXT)
         self.screen.blit(txt, txt.get_rect(center=(WIDTH // 2, HEIGHT // 2)))
