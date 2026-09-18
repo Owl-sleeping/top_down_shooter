@@ -83,6 +83,7 @@ class Game:
                     self.handle_collisions()
                     if any(p.is_dead for p in self.players.values()):
                         self.game_over = True
+                        self._determine_winner()
                 if self.mode == "host":
                     self.connection.send(self.build_snapshot())
 
@@ -374,6 +375,21 @@ class Game:
 
         pygame.display.flip()
 
+    def _determine_winner(self) -> None:
+        if len(self.players) < 2:
+            return
+        survivors = [pid for pid, p in self.players.items() if not p.is_dead]
+        self.winner_id = survivors[0] if len(survivors) == 1 else None
+
     def _draw_game_over(self) -> None:
-        txt = self.game_over_font.render("GAME OVER", True, COLOR_GAME_OVER_TEXT)
+        if len(self.players) < 2:
+            text = "GAME OVER"
+        elif self.winner_id is None:
+            text = "DRAW"
+        elif self.winner_id == self.local_id:
+            text = "YOU WIN"
+        else:
+            text = "YOU LOSE"
+
+        txt = self.game_over_font.render(text, True, COLOR_GAME_OVER_TEXT)
         self.screen.blit(txt, txt.get_rect(center=(WIDTH // 2, HEIGHT // 2)))
