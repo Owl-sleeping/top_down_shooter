@@ -377,7 +377,8 @@ class Game:
             pygame.draw.rect(screen, color, p.rect)
             draw_rotated_rect(screen, (GUN_LENGTH, GUN_WIDTH), COLOR_GUN, p.direction, p.gun_pos)
 
-        draw_hud(screen, self.font, local_player, self.item_textures)
+        enemy = next((p for pid, p in self.players.items() if pid != self.local_id), None)
+        draw_hud(screen, self.font, local_player, self.item_textures, enemy=enemy)
 
         if self.disconnected:
             self._draw_disconnected()

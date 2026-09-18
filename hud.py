@@ -7,12 +7,13 @@ from constants import (
     COLOR_HP_BG, COLOR_HP_FG, COLOR_AMMO_FULL, COLOR_AMMO_EMPTY,
     COLOR_RELOAD_BG, COLOR_RELOAD_FG, COLOR_RELOAD_TEXT,
     COLOR_SLOT_BG, COLOR_SLOT_BORDER, COLOR_SLOT_NUMBER, COLOR_COUNT_TEXT, COLOR_COUNT_BG,
-    COLOR_GRENADE_BAR, COLOR_MEDKIT_BAR,
+    COLOR_GRENADE_BAR, COLOR_MEDKIT_BAR, COLOR_ENEMY_PLAYER,
     COLOR_GRENADE_ICON, COLOR_MEDKIT_ICON_BODY, COLOR_MEDKIT_ICON_CROSS,
     MAX_AMMO, RELOAD_TIME,
     MAX_GRENADES, MAX_MEDKITS,
     HP_BAR_POS, HP_BAR_SIZE, AMMO_BOX_ORIGIN, AMMO_BOX_SIZE, AMMO_BOX_GAP,
     RELOAD_GAUGE_POS, RELOAD_GAUGE_SIZE, RELOAD_TEXT_POS,
+    ENEMY_HP_BAR_POS, ENEMY_HP_BAR_SIZE, ENEMY_HP_LABEL_OFFSET_Y,
     INVENTORY_SLOT_COUNT, INVENTORY_SLOT_SIZE, INVENTORY_SLOT_GAP, INVENTORY_ORIGIN,
     INVENTORY_ICON_SIZE,
 )
@@ -44,17 +45,29 @@ def draw_hud(
     font: pygame.font.Font,
     player: Player,
     item_textures: dict[str, pygame.Surface],
+    enemy: Player | None = None,
 ) -> None:
     _draw_hp_bar(screen, player)
     _draw_ammo_boxes(screen, player)
     _draw_reload_gauge(screen, font, player)
     _draw_inventory(screen, font, player, item_textures)
+    if enemy is not None:
+        _draw_enemy_hp_bar(screen, font, enemy)
 
 
 def _draw_hp_bar(screen: pygame.Surface, player: Player) -> None:
     pygame.draw.rect(screen, COLOR_HP_BG, (*HP_BAR_POS, *HP_BAR_SIZE))
     pygame.draw.rect(screen, COLOR_HP_FG, (
         HP_BAR_POS[0], HP_BAR_POS[1], HP_BAR_SIZE[0] * (player.hp / player.max_hp), HP_BAR_SIZE[1]
+    ))
+
+
+def _draw_enemy_hp_bar(screen: pygame.Surface, font: pygame.font.Font, enemy: Player) -> None:
+    label = font.render("ENEMY", True, COLOR_ENEMY_PLAYER)
+    screen.blit(label, (ENEMY_HP_BAR_POS[0], ENEMY_HP_BAR_POS[1] - ENEMY_HP_LABEL_OFFSET_Y))
+    pygame.draw.rect(screen, COLOR_HP_BG, (*ENEMY_HP_BAR_POS, *ENEMY_HP_BAR_SIZE))
+    pygame.draw.rect(screen, COLOR_ENEMY_PLAYER, (
+        ENEMY_HP_BAR_POS[0], ENEMY_HP_BAR_POS[1], ENEMY_HP_BAR_SIZE[0] * (enemy.hp / enemy.max_hp), ENEMY_HP_BAR_SIZE[1]
     ))
 
 
