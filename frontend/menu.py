@@ -6,7 +6,9 @@ from backend import relay_connection
 from backend.relay_connection import RelayConnection
 from backend.maps import GameMap, MAPS, get_map_by_name
 from backend.weapons import Weapon, WEAPONS, get_weapon_by_name
-from constants import WIDTH, HEIGHT, RELAY_URL, COLOR_BG, COLOR_PLAYER
+from frontend.weapon_sprites import load_weapon_portraits
+from frontend.hud import create_weapon_icon_frame
+from constants import WIDTH, HEIGHT, RELAY_URL, COLOR_BG, COLOR_PLAYER, WEAPON_ICON_FRAME_SIZE
 
 # "arial"はCJKグリフを持たないため、日本語表示にはIME非依存で日本語Windowsに
 # 標準搭載されているYu Gothicを使う(HUDの英語表示用フォントとは別に用意する)。
@@ -117,9 +119,8 @@ def _select_map(screen: pygame.Surface, clock: pygame.time.Clock, font: pygame.f
 
 
 def _select_weapon(screen: pygame.Surface, clock: pygame.time.Clock, font: pygame.font.Font) -> Weapon | None:
-    lines = ["使用する武器を選択してください", ""]
-    lines += [f"[{i + 1}] {w.name}" for i, w in enumerate(WEAPONS)]
-    lines += ["", "ESC で戻る"]
+    icon_frame = create_weapon_icon_frame()
+    portraits = load_weapon_portraits()
 
     while True:
         clock.tick(30)
@@ -134,8 +135,38 @@ def _select_weapon(screen: pygame.Surface, clock: pygame.time.Clock, font: pygam
                     if event.key == pygame.K_1 + i:
                         return w
 
-        _draw_lines(screen, font, lines)
+        _draw_weapon_select(screen, font, icon_frame, portraits)
         pygame.display.flip()
+
+
+def _draw_weapon_select(
+    screen: pygame.Surface, font: pygame.font.Font, icon_frame: pygame.Surface, portraits: dict[str, pygame.Surface]
+) -> None:
+    screen.fill(COLOR_BG)
+
+    title = font.render("使用する武器を選択してください", True, COLOR_PLAYER)
+    screen.blit(title, title.get_rect(center=(WIDTH // 2, 80)))
+
+    row_height = 100
+    total_height = row_height * len(WEAPONS)
+    start_y = HEIGHT // 2 - total_height // 2
+    icon_x = WIDTH // 2 - 220
+
+    for i, w in enumerate(WEAPONS):
+        row_y = start_y + i * row_height
+        screen.blit(icon_frame, (icon_x, row_y))
+
+        portrait = portraits[w.name]
+        icon_center = (icon_x + WEAPON_ICON_FRAME_SIZE[0] // 2, row_y + WEAPON_ICON_FRAME_SIZE[1] // 2)
+        screen.blit(portrait, portrait.get_rect(center=icon_center))
+
+        label = font.render(f"[{i + 1}] {w.name}", True, COLOR_PLAYER)
+        label_x = icon_x + WEAPON_ICON_FRAME_SIZE[0] + 24
+        label_y = row_y + WEAPON_ICON_FRAME_SIZE[1] // 2 - label.get_height() // 2
+        screen.blit(label, (label_x, label_y))
+
+    hint = font.render("ESC で戻る", True, COLOR_PLAYER)
+    screen.blit(hint, hint.get_rect(center=(WIDTH // 2, start_y + total_height + 30)))
 
 
 def _wait_for_map_selection(
