@@ -59,6 +59,7 @@ RELOAD_TIME = 1.5
 
 # 弾のライフサイクル（画面外に出たら消滅させるための余白）
 BULLET_DESPAWN_MARGIN = 64
+BULLET_DAMAGE = 2
 
 # グレネード
 GRENADE_THROW_SPEED = 500

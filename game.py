@@ -16,7 +16,7 @@ from constants import (
     COLOR_GAME_OVER_TEXT, GAME_OVER_FONT_SIZE,
     PLAYER_START_POS, PLAYER2_START_POS,
     EXPLOSION_DURATION, EXPLOSION_DAMAGE, EXPLOSION_RING_WIDTH,
-    BULLET_DESPAWN_MARGIN,
+    BULLET_DESPAWN_MARGIN, BULLET_DAMAGE,
     PLAYER_FOV_DEGREES,
     VISION_DARKNESS_ALPHA, VISION_LIGHT_ALPHA,
     GUN_LENGTH, GUN_WIDTH,
@@ -309,6 +309,16 @@ class Game:
             for w in self.walls:
                 if w.colliderect(b_rect):
                     b.alive = False
+            if not b.alive:
+                continue
+            # 弾 vs 敵プレイヤー（発射者自身には当たらない）
+            for pid, p in self.players.items():
+                if pid == b.owner_id:
+                    continue
+                if b_rect.colliderect(p.rect):
+                    p.take_damage(BULLET_DAMAGE)
+                    b.alive = False
+                    break
         self.bullets = [b for b in self.bullets if b.alive]
 
     def draw(self) -> None:
