@@ -22,7 +22,7 @@ from constants import (
 # インベントリスロットに新しいアイテムを割り当てられる。要素が無い
 # スロットは枠だけが描画される。
 INVENTORY_ITEMS = [
-    {"key": "grenade_count", "texture": "grenade", "max": MAX_GRENADES, "bar_color": COLOR_GRENADE_BAR},
+    # {"key": "grenade_count", "texture": "grenade", "max": MAX_GRENADES, "bar_color": COLOR_GRENADE_BAR},  # グレネード機能は一時的に無効化
     {"key": "medkit_count", "texture": "medkit", "max": MAX_MEDKITS, "bar_color": COLOR_MEDKIT_BAR},
 ]
 
@@ -48,11 +48,11 @@ def draw_hud(
     enemy: Player | None = None,
 ) -> None:
     _draw_hp_bar(screen, player)
-    _draw_ammo_boxes(screen, player)
+    # _draw_ammo_boxes(screen, player)  # 弾の残数表示は非表示にする
     _draw_reload_gauge(screen, font, player)
     _draw_inventory(screen, font, player, item_textures)
-    if enemy is not None:
-        _draw_enemy_hp_bar(screen, font, enemy)
+    # if enemy is not None:
+    #     _draw_enemy_hp_bar(screen, font, enemy)  # 敵のHPは見えないようにする
 
 
 def _draw_hp_bar(screen: pygame.Surface, player: Player) -> None:

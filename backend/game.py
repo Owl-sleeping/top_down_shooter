@@ -121,9 +121,9 @@ class Game:
                 if event.key == pygame.K_ESCAPE:
                     self._quit()
 
-                # グレネード：１
-                if event.key == pygame.K_1:
-                    self._trigger_action("grenade")
+                # グレネード：１（一時的に無効化）
+                # if event.key == pygame.K_1:
+                #     self._trigger_action("grenade")
 
                 # 回復：２
                 if event.key == pygame.K_2:
