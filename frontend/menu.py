@@ -1,13 +1,12 @@
 """起動時のモード選択・接続確立を行う簡易メニュー画面。"""
 
-import socket
-
 import pygame
 
-from backend.network import Client, Connection, Host
+from backend import relay_connection
+from backend.relay_connection import RelayConnection
 from backend.maps import GameMap, MAPS, get_map_by_name
 from backend.weapons import Weapon, WEAPONS, get_weapon_by_name
-from constants import WIDTH, HEIGHT, NETWORK_PORT, COLOR_BG, COLOR_PLAYER
+from constants import WIDTH, HEIGHT, RELAY_URL, COLOR_BG, COLOR_PLAYER
 
 # "arial"はCJKグリフを持たないため、日本語表示にはIME非依存で日本語Windowsに
 # 標準搭載されているYu Gothicを使う(HUDの英語表示用フォントとは別に用意する)。
@@ -17,8 +16,8 @@ _LINE_HEIGHT = 28
 
 def run_menu(
     screen: pygame.Surface, clock: pygame.time.Clock, font: pygame.font.Font
-) -> tuple[str, Connection | None, int, GameMap, dict[int, Weapon]]:
-    """[1]ローカルプレイ [2]ホストになる [3]参加する を選択させる。
+) -> tuple[str, RelayConnection | None, int, GameMap, dict[int, Weapon]]:
+    """[1]ローカルプレイ [2]ルームを作る [3]ルームに参加する を選択させる。
     戻り値: (mode, connection, local_id, game_map, weapons)"""
     menu_font = pygame.font.SysFont(_MENU_FONT_NAME, 24)
 
@@ -41,14 +40,14 @@ def run_menu(
             host_weapon = _select_weapon(screen, clock, menu_font)
             if host_weapon is None:
                 continue
-            result = _host_flow(screen, clock, menu_font, game_map, host_weapon)
+            result = _host_relay_flow(screen, clock, menu_font, game_map, host_weapon)
             if result is None:
                 continue
             connection, client_weapon = result
             return "host", connection, 0, game_map, {0: host_weapon, 1: client_weapon}
 
         if choice == "client":
-            connection = _client_flow(screen, clock, menu_font)
+            connection = _client_relay_flow(screen, clock, menu_font)
             if connection is None:
                 continue
             received = _wait_for_map_selection(screen, clock, menu_font, connection)
@@ -69,8 +68,8 @@ def _select_mode(screen: pygame.Surface, clock: pygame.time.Clock, font: pygame.
         "2D TOP-DOWN SHOOTER",
         "",
         "[1] ローカルプレイ",
-        "[2] オンライン対戦: ホストになる",
-        "[3] オンライン対戦: 参加する",
+        "[2] オンライン対戦: ルームを作る",
+        "[3] オンライン対戦: ルームに参加する",
         "",
         "ESC で終了",
     ]
@@ -140,7 +139,7 @@ def _select_weapon(screen: pygame.Surface, clock: pygame.time.Clock, font: pygam
 
 
 def _wait_for_map_selection(
-    screen: pygame.Surface, clock: pygame.time.Clock, font: pygame.font.Font, connection: Connection
+    screen: pygame.Surface, clock: pygame.time.Clock, font: pygame.font.Font, connection: RelayConnection
 ) -> tuple[GameMap, Weapon] | None:
     lines = ["ホストの選択を待っています...", "", "ESC でキャンセル"]
 
@@ -164,70 +163,94 @@ def _wait_for_map_selection(
         pygame.display.flip()
 
 
-def _host_flow(
+def _show_message(screen: pygame.Surface, clock: pygame.time.Clock, font: pygame.font.Font, lines: list[str]) -> None:
+    """何かキーが押されるまでメッセージを表示し続ける(エラー表示用)。"""
+    while True:
+        clock.tick(30)
+        for event in pygame.event.get():
+            if event.type == pygame.QUIT:
+                pygame.quit()
+                raise SystemExit
+            if event.type == pygame.KEYDOWN:
+                return
+        _draw_lines(screen, font, lines)
+        pygame.display.flip()
+
+
+def _host_relay_flow(
     screen: pygame.Surface, clock: pygame.time.Clock, font: pygame.font.Font, game_map: GameMap, host_weapon: Weapon
-) -> tuple[Connection, Weapon] | None:
-    host_net = Host(NETWORK_PORT)
+) -> tuple[RelayConnection, Weapon] | None:
     try:
-        local_ip = socket.gethostbyname(socket.gethostname())
-    except OSError:
-        local_ip = "(取得失敗)"
+        conn, code = relay_connection.create_room(RELAY_URL)
+    except ConnectionError as exc:
+        _show_message(screen, clock, font, [
+            "中継サーバーに接続できませんでした",
+            "",
+            str(exc),
+            "",
+            "何かキーを押すと戻ります",
+        ])
+        return None
 
     waiting_lines = [
-        "ホストとして待機中...",
+        "ルームを作成しました",
         "",
-        f"ローカルIP: {local_ip}  ポート: {NETWORK_PORT}",
-        "友人と対戦するには、ルーターでこのポートを開放し",
-        "あなたのグローバルIPを友人に伝えてください。",
+        f"ルームコード:  {code}",
         "",
-        "接続を待っています...",
+        "この4桁の番号を友達に伝えてください",
+        "友達が「ルームに参加する」から入力すると対戦が始まります",
         "",
         "ESC でキャンセル",
     ]
-    try:
-        connection: Connection | None = None
-        while connection is None:
-            clock.tick(30)
-            for event in pygame.event.get():
-                if event.type == pygame.QUIT:
-                    pygame.quit()
-                    raise SystemExit
-                if event.type == pygame.KEYDOWN and event.key == pygame.K_ESCAPE:
-                    return None
+    weapon_wait_lines = ["対戦相手の武器選択を待っています...", "", "ESC でキャンセル"]
 
-            connection = host_net.accept(poll_timeout=0.05)
-            if connection is None:
-                _draw_lines(screen, font, waiting_lines)
-                pygame.display.flip()
-
-        connection.send({"type": "map_select", "map": game_map.name, "weapon": host_weapon.name})
-
-        # クライアントが自分の武器を選ぶまで待つ
-        weapon_wait_lines = ["対戦相手の武器選択を待っています...", "", "ESC でキャンセル"]
-        while True:
-            clock.tick(30)
-            for event in pygame.event.get():
-                if event.type == pygame.QUIT:
-                    pygame.quit()
-                    raise SystemExit
-                if event.type == pygame.KEYDOWN and event.key == pygame.K_ESCAPE:
-                    connection.close()
-                    return None
-
-            if not connection.connected:
+    while True:
+        clock.tick(30)
+        for event in pygame.event.get():
+            if event.type == pygame.QUIT:
+                pygame.quit()
+                raise SystemExit
+            if event.type == pygame.KEYDOWN and event.key == pygame.K_ESCAPE:
+                conn.close()
                 return None
 
-            for msg in connection.poll():
-                if msg.get("type") == "weapon_select":
-                    return connection, get_weapon_by_name(msg["weapon"])
+        if conn.failed:
+            conn.close()
+            _show_message(screen, clock, font, [
+                "接続が失われました", "", "何かキーを押すと戻ります",
+            ])
+            return None
 
-            _draw_lines(screen, font, weapon_wait_lines)
-            pygame.display.flip()
-    finally:
-        host_net.close()
+        if conn.connected:
+            break
+
+        _draw_lines(screen, font, waiting_lines)
+        pygame.display.flip()
+
+    conn.send({"type": "map_select", "map": game_map.name, "weapon": host_weapon.name})
+
+    while True:
+        clock.tick(30)
+        for event in pygame.event.get():
+            if event.type == pygame.QUIT:
+                pygame.quit()
+                raise SystemExit
+            if event.type == pygame.KEYDOWN and event.key == pygame.K_ESCAPE:
+                conn.close()
+                return None
+
+        if not conn.connected:
+            return None
+
+        for msg in conn.poll():
+            if msg.get("type") == "weapon_select":
+                return conn, get_weapon_by_name(msg["weapon"])
+
+        _draw_lines(screen, font, weapon_wait_lines)
+        pygame.display.flip()
 
 
-def _client_flow(screen: pygame.Surface, clock: pygame.time.Clock, font: pygame.font.Font) -> Connection | None:
+def _client_relay_flow(screen: pygame.Surface, clock: pygame.time.Clock, font: pygame.font.Font) -> RelayConnection | None:
     text = ""
     error: str | None = None
 
@@ -243,26 +266,25 @@ def _client_flow(screen: pygame.Surface, clock: pygame.time.Clock, font: pygame.
                     return None
 
                 if event.key == pygame.K_RETURN:
-                    if not text.strip():
+                    code = text.strip()
+                    if not (code.isdigit() and len(code) == 4):
+                        error = "4桁の数字で入力してください"
                         continue
-                    ip, _, port_str = text.strip().partition(":")
-                    port = int(port_str) if port_str.isdigit() else NETWORK_PORT
                     try:
-                        return Client.connect(ip, port)
-                    except OSError as exc:
-                        error = f"接続失敗: {exc}"
+                        return relay_connection.join_room(RELAY_URL, code)
+                    except ConnectionError as exc:
+                        error = f"参加失敗: {exc}"
                         continue
 
                 if event.key == pygame.K_BACKSPACE:
                     text = text[:-1]
-                elif event.unicode.isprintable():
+                elif event.unicode.isdigit() and len(text) < 4:
                     text += event.unicode
 
         lines = [
             "参加する",
             "",
-            "ホストのIPアドレスを入力してください",
-            "(例: 123.45.67.89 または 123.45.67.89:5555)",
+            "友達から伝えられた4桁のルームコードを入力してください",
             "",
             f"> {text}",
             "",

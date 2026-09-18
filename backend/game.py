@@ -14,6 +14,7 @@ from backend.maps import GameMap, MAPS
 from backend.weapons import Weapon, WEAPONS, get_weapon_by_name
 from frontend.hud import create_item_textures, draw_hud
 from backend.network import Connection
+from backend.relay_connection import RelayConnection
 from constants import (
     WIDTH, HEIGHT, FPS,
     COLOR_BG, COLOR_WALL, COLOR_PLAYER, COLOR_ENEMY_PLAYER, COLOR_EXPLOSION,
@@ -31,7 +32,7 @@ class Game:
         clock: pygame.time.Clock,
         font: pygame.font.Font,
         mode: str = "solo",
-        connection: Connection | None = None,
+        connection: Connection | RelayConnection | None = None,
         local_id: int = 0,
         game_map: GameMap | None = None,
         weapons: dict[int, Weapon] | None = None,
