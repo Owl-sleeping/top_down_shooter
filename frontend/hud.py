@@ -11,6 +11,7 @@ from constants import (
     COLOR_GRENADE_BAR, COLOR_MEDKIT_BAR, COLOR_ENEMY_PLAYER,
     COLOR_GRENADE_ICON,
     MAX_GRENADES, MAX_MEDKITS,
+    WEAPON_ICON_POS, WEAPON_ICON_FRAME_SIZE, WEAPON_PORTRAIT_SIZE,
     HP_BAR_POS, HP_BAR_SIZE, AMMO_BOX_ORIGIN, AMMO_BOX_SIZE, AMMO_BOX_GAP,
     RELOAD_GAUGE_POS, RELOAD_GAUGE_SIZE, RELOAD_TEXT_POS,
     ENEMY_HP_BAR_POS, ENEMY_HP_BAR_SIZE, ENEMY_HP_LABEL_OFFSET_Y,
@@ -38,19 +39,42 @@ def create_item_textures() -> dict[str, pygame.Surface]:
     return {"grenade": grenade_tex, "medkit": medkit_tex}
 
 
+def create_weapon_icon_frame() -> pygame.Surface:
+    """装備武器アイコンの枠画像(images/icon.png)をゲーム開始時に一度だけ読み込む。"""
+    icon_img = pygame.image.load(str(IMAGES_DIR / "icon.png")).convert_alpha()
+    return pygame.transform.smoothscale(icon_img, WEAPON_ICON_FRAME_SIZE)
+
+
 def draw_hud(
     screen: pygame.Surface,
     font: pygame.font.Font,
     player: Player,
     item_textures: dict[str, pygame.Surface],
     enemy: Player | None = None,
+    weapon_icon_frame: pygame.Surface | None = None,
+    weapon_portrait: pygame.Surface | None = None,
 ) -> None:
+    if weapon_icon_frame is not None:
+        _draw_weapon_icon(screen, weapon_icon_frame, weapon_portrait)
     _draw_hp_bar(screen, player)
     # _draw_ammo_boxes(screen, player)  # 弾の残数表示は非表示にする
     _draw_reload_gauge(screen, font, player)
     _draw_inventory(screen, font, player, item_textures)
     # if enemy is not None:
     #     _draw_enemy_hp_bar(screen, font, enemy)  # 敵のHPは見えないようにする
+
+
+def _draw_weapon_icon(
+    screen: pygame.Surface, icon_frame: pygame.Surface, portrait: pygame.Surface | None
+) -> None:
+    """装備中の武器を、枠(icon.png)+武器画像(横から見た画像)で表示する。"""
+    screen.blit(icon_frame, WEAPON_ICON_POS)
+    if portrait is not None:
+        center = (
+            WEAPON_ICON_POS[0] + WEAPON_ICON_FRAME_SIZE[0] // 2,
+            WEAPON_ICON_POS[1] + WEAPON_ICON_FRAME_SIZE[1] // 2,
+        )
+        screen.blit(portrait, portrait.get_rect(center=center))
 
 
 def _draw_hp_bar(screen: pygame.Surface, player: Player) -> None:

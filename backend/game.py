@@ -7,12 +7,12 @@ import pygame
 
 from frontend.render_utils import make_alpha_surface
 from frontend.vision import Vision, is_point_visible
-from frontend.weapon_sprites import load_weapon_sprites, draw_weapon_sprite
+from frontend.weapon_sprites import load_weapon_sprites, load_weapon_portraits, draw_weapon_sprite
 from backend.entities import Bullet, Grenade, Explosion
 from backend.player import Player
 from backend.maps import GameMap, MAPS
 from backend.weapons import Weapon, WEAPONS, get_weapon_by_name
-from frontend.hud import create_item_textures, draw_hud
+from frontend.hud import create_item_textures, create_weapon_icon_frame, draw_hud
 from backend.network import Connection
 from backend.relay_connection import RelayConnection
 from constants import (
@@ -49,6 +49,8 @@ class Game:
 
         self.item_textures = create_item_textures()
         self.weapon_sprites = load_weapon_sprites()
+        self.weapon_portraits = load_weapon_portraits()
+        self.weapon_icon_frame = create_weapon_icon_frame()
 
         self.game_map = game_map or MAPS[0]
         self.walls = self.game_map.build_wall_rects()
@@ -429,7 +431,10 @@ class Game:
                 screen, self.weapon_sprites[enemy.weapon.name], enemy.direction, enemy.gun_pos
             )
 
-        draw_hud(screen, self.font, local_player, self.item_textures, enemy=enemy if enemy_visible else None)
+        draw_hud(
+            screen, self.font, local_player, self.item_textures, enemy=enemy if enemy_visible else None,
+            weapon_icon_frame=self.weapon_icon_frame, weapon_portrait=self.weapon_portraits[local_weapon.name],
+        )
 
         if self.disconnected:
             self._draw_disconnected()

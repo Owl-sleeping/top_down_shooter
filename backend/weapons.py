@@ -6,6 +6,7 @@ class Weapon:
         self,
         name: str,
         image_filename: str,
+        held_image_filename: str,
         magazine_size: int,
         fire_rate: float,
         reload_time: float,
@@ -17,7 +18,8 @@ class Weapon:
         fov_degrees: float,
     ) -> None:
         self.name = name
-        self.image_filename = image_filename
+        self.image_filename = image_filename            # 横から見た画像(HUD/メニューでのアイコン表示用)
+        self.held_image_filename = held_image_filename  # 真上から見た画像(プレイヤーが構えている時の表示用)
         self.magazine_size = magazine_size
         self.fire_rate = fire_rate          # 発射クールダウン(秒)。小さいほど連射が速い
         self.reload_time = reload_time      # リロードにかかる時間(秒)
@@ -36,6 +38,7 @@ WEAPONS: list[Weapon] = [
     Weapon(
         name="AKS74U",
         image_filename="AKS74U.png",
+        held_image_filename="AKS74U_up.png",
         magazine_size=30,
         fire_rate=0.12,      # 速度:中(自動小銃として標準的な連射速度)
         reload_time=1.8,
@@ -49,6 +52,7 @@ WEAPONS: list[Weapon] = [
     Weapon(
         name="M870",
         image_filename="M870.png",
+        held_image_filename="M870_up.png",
         magazine_size=8,     # 弾8
         fire_rate=0.6,       # 速度:低(ポンプアクション)
         reload_time=2.5,
@@ -62,6 +66,7 @@ WEAPONS: list[Weapon] = [
     Weapon(
         name="M700",
         image_filename="M700.png",
+        held_image_filename="M700_up.png",
         magazine_size=5,     # 弾5
         fire_rate=1.5,       # 激遅い(ボルトアクション)
         reload_time=2.2,
@@ -75,6 +80,7 @@ WEAPONS: list[Weapon] = [
     Weapon(
         name="MP5K",
         image_filename="MP5K.png",
+        held_image_filename="MP5K_up.png",
         magazine_size=25,    # 未指定。SMGらしい弾数
         fire_rate=0.08,      # 未指定。最速の連射速度
         reload_time=1.4,
