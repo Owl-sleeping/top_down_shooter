@@ -89,24 +89,24 @@ MAX_MEDKITS = 2
 
 # 装備武器アイコン(HUD左上・武器選択画面で使用)
 WEAPON_ICON_POS = (20, 20)
-WEAPON_ICON_FRAME_SIZE = (80, 80)   # icon.pngを縮小して表示するサイズ
-WEAPON_PORTRAIT_SIZE = (52, 52)     # 上記の枠内に重ねる武器画像(横から見た画像)のサイズ
+WEAPON_ICON_FRAME_SIZE = (120, 120)  # icon.pngを縮小して表示するサイズ
+WEAPON_PORTRAIT_SIZE = (80, 80)      # 上記の枠内に重ねる武器画像(横から見た画像)のサイズ
 
 # HUDレイアウト(装備武器アイコンの下にHP以下を配置する)
-HP_BAR_POS = (20, 120)
+HP_BAR_POS = (20, 160)
 HP_BAR_SIZE = (250, 20)
 
 ENEMY_HP_BAR_POS = (WIDTH - 270, 20)
 ENEMY_HP_BAR_SIZE = (250, 20)
 ENEMY_HP_LABEL_OFFSET_Y = 20
 
-AMMO_BOX_ORIGIN = (20, 160)
+AMMO_BOX_ORIGIN = (20, 200)
 AMMO_BOX_SIZE = (18, 30)
 AMMO_BOX_GAP = 25
 
-RELOAD_GAUGE_POS = (20, 210)
+RELOAD_GAUGE_POS = (20, 250)
 RELOAD_GAUGE_SIZE = (200, 10)
-RELOAD_TEXT_POS = (230, 205)
+RELOAD_TEXT_POS = (230, 245)
 
 INVENTORY_SLOT_COUNT = 3
 INVENTORY_SLOT_SIZE = (70, 70)

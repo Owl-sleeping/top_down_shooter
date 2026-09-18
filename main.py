@@ -3,10 +3,12 @@ import pygame
 from constants import WIDTH, HEIGHT, WINDOW_TITLE
 from backend.game import Game
 from frontend.menu import run_menu
+from resources import IMAGES_DIR
 
 
 def main() -> None:
     pygame.init()
+    pygame.display.set_icon(pygame.image.load(str(IMAGES_DIR / "icon.png")))
     screen = pygame.display.set_mode((WIDTH, HEIGHT))
     pygame.display.set_caption(WINDOW_TITLE)
     clock = pygame.time.Clock()
