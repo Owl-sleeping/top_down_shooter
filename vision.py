@@ -29,8 +29,8 @@ class Vision:
                 ((w.right, w.bottom), (w.left, w.bottom)),
                 ((w.left, w.bottom), (w.left, w.top))
             ]
-            for l_start, l_end in lines:
-                hit = self.line_intersection((p, ray_end), (l_start, l_end))
+            for seg_start, seg_end in lines:
+                hit = self.line_intersection((p, ray_end), (seg_start, seg_end))
                 if hit:
                     dist_sq = (hit[0] - p[0])**2 + (hit[1] - p[1])**2
                     if dist_sq < min_dist_sq:
