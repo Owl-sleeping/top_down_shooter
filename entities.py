@@ -16,13 +16,14 @@ Point = tuple[float, float]
 
 
 class Bullet:
-    def __init__(self, p: Point, angle: float) -> None:
+    def __init__(self, p: Point, angle: float, owner_id: int = 0) -> None:
         self.pos = pygame.Vector2(p)
         self.angle = angle
         self.speed = BULLET_SPEED
         self.vel = pygame.Vector2(math.cos(angle), math.sin(angle)) * self.speed
         self.alive = True
         self.width, self.height = BULLET_WIDTH, BULLET_HEIGHT
+        self.owner_id = owner_id
 
     def update(self, dt: float) -> None:
         self.pos += self.vel * dt
@@ -57,13 +58,14 @@ class Bullet:
 
 
 class Grenade:
-    def __init__(self, p: Point, angle: float) -> None:
+    def __init__(self, p: Point, angle: float, owner_id: int = 0) -> None:
         self.pos = pygame.Vector2(p)
         self.speed = GRENADE_THROW_SPEED
         self.vel = pygame.Vector2(math.cos(angle), math.sin(angle)) * self.speed
         self.timer = GRENADE_FUSE_TIME
         self.exploded = False
         self.explosion_radius = GRENADE_EXPLOSION_RADIUS
+        self.owner_id = owner_id
 
     def update(self, dt: float) -> None:
         if self.exploded:
@@ -84,10 +86,11 @@ class Grenade:
 
 
 class Explosion:
-    def __init__(self, circle_data: tuple[float, float, float]) -> None:
+    def __init__(self, circle_data: tuple[float, float, float], owner_id: int = 0) -> None:
         self.x, self.y, self.radius = circle_data
         self.timer = EXPLOSION_DURATION
-        self.damaged = False
+        self.owner_id = owner_id
+        self.damaged_ids: set[int] = set()
 
     def intersects_rect(self, rect: pygame.Rect) -> bool:
         # 円と矩形の当たり判定
