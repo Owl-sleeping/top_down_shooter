@@ -16,9 +16,11 @@ from constants import (
     COLOR_SLOT_BG, COLOR_SLOT_BORDER, COLOR_SLOT_NUMBER, COLOR_COUNT_TEXT, COLOR_COUNT_BG,
     COLOR_GRENADE_BAR, COLOR_MEDKIT_BAR,
     COLOR_GRENADE_ICON, COLOR_MEDKIT_ICON_BODY, COLOR_MEDKIT_ICON_CROSS,
+    COLOR_GAME_OVER_TEXT, GAME_OVER_FONT_SIZE,
     PLAYER_START_POS,
     MAX_AMMO, RELOAD_TIME,
     EXPLOSION_DURATION, EXPLOSION_DAMAGE, EXPLOSION_RING_WIDTH,
+    BULLET_DESPAWN_MARGIN,
     PLAYER_FOV_DEGREES,
     VISION_DARKNESS_ALPHA, VISION_LIGHT_ALPHA,
     GUN_LENGTH, GUN_WIDTH,
@@ -35,6 +37,7 @@ class Game:
         self.screen = screen
         self.clock = clock
         self.font = font
+        self.game_over_font = pygame.font.SysFont("arial", GAME_OVER_FONT_SIZE, bold=True)
 
         self.grenade_tex = pygame.Surface(INVENTORY_ICON_SIZE, pygame.SRCALPHA)
         pygame.draw.circle(self.grenade_tex, COLOR_GRENADE_ICON, (24, 24), 20)
@@ -59,14 +62,18 @@ class Game:
 
         self.fov = math.radians(PLAYER_FOV_DEGREES)
         self.tris = []
+        self.game_over = False
 
     def run(self):
         while True:
             dt = self.clock.tick(FPS) / 1000.0
             self.handle_events()
-            self.handle_input(dt)
-            self.update(dt)
-            self.handle_collisions()
+            if not self.game_over:
+                self.handle_input(dt)
+                self.update(dt)
+                self.handle_collisions()
+                if self.player.is_dead:
+                    self.game_over = True
             self.draw()
 
     def handle_events(self):
@@ -76,6 +83,11 @@ class Game:
                 sys.exit()
 
             elif event.type == pygame.KEYDOWN:
+                # ESCキーで終了
+                if event.key == pygame.K_ESCAPE:
+                    pygame.quit()
+                    sys.exit()
+
                 # グレネード：１
                 if event.key == pygame.K_1:
                     cursor = pygame.mouse.get_pos()
@@ -141,9 +153,16 @@ class Game:
                 e.damaged = True
         self.explosions = [e for e in self.explosions if e.timer > 0]
 
-        # 弾丸 vs 壁
+        # 弾丸 vs 壁、および画面外への消滅判定
+        despawn_bounds = pygame.Rect(
+            -BULLET_DESPAWN_MARGIN, -BULLET_DESPAWN_MARGIN,
+            WIDTH + BULLET_DESPAWN_MARGIN * 2, HEIGHT + BULLET_DESPAWN_MARGIN * 2
+        )
         for b in self.bullets:
             b_rect = b.get_rect()
+            if not despawn_bounds.collidepoint(b.pos):
+                b.alive = False
+                continue
             for w in self.walls:
                 if w.colliderect(b_rect):
                     b.alive = False
@@ -197,7 +216,14 @@ class Game:
 
         self._draw_hud()
 
+        if self.game_over:
+            self._draw_game_over()
+
         pygame.display.flip()
+
+    def _draw_game_over(self):
+        txt = self.game_over_font.render("GAME OVER", True, COLOR_GAME_OVER_TEXT)
+        self.screen.blit(txt, txt.get_rect(center=(WIDTH // 2, HEIGHT // 2)))
 
     def _draw_hud(self):
         screen = self.screen
