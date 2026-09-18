@@ -16,7 +16,10 @@ def _load_scaled(filename: str) -> pygame.Surface:
     max_w, max_h = WEAPON_SPRITE_MAX_SIZE
     scale = min(max_w / image.get_width(), max_h / image.get_height())
     size = (max(1, int(image.get_width() * scale)), max(1, int(image.get_height() * scale)))
-    return pygame.transform.smoothscale(image, size)
+    scaled = pygame.transform.smoothscale(image, size)
+    # 元画像は銃口が左向きに描かれているが、回転処理は角度0=右向きを前提にしているため
+    # 左右反転して銃口を右に揃えておく(そうしないと常に180度反対を向いてしまう)。
+    return pygame.transform.flip(scaled, True, False)
 
 
 def load_weapon_sprites() -> dict[str, pygame.Surface]:

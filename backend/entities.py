@@ -19,9 +19,16 @@ Point = tuple[float, float]
 
 class Bullet:
     def __init__(
-        self, p: Point, angle: float, owner_id: int = 0, speed: float = DEFAULT_BULLET_SPEED, damage: int = 0
+        self,
+        p: Point,
+        angle: float,
+        owner_id: int = 0,
+        speed: float = DEFAULT_BULLET_SPEED,
+        damage: int = 0,
+        max_range: float = math.inf,
     ) -> None:
         self.pos = pygame.Vector2(p)
+        self.spawn_pos = pygame.Vector2(p)
         self.angle = angle
         self.speed = speed
         self.vel = pygame.Vector2(math.cos(angle), math.sin(angle)) * self.speed
@@ -29,9 +36,13 @@ class Bullet:
         self.width, self.height = BULLET_WIDTH, BULLET_HEIGHT
         self.owner_id = owner_id
         self.damage = damage
+        self.max_range = max_range  # 発射地点からこの距離を超えると消滅する(武器の射程)
 
     def update(self, dt: float) -> None:
         self.pos += self.vel * dt
+
+    def exceeded_range(self) -> bool:
+        return self.pos.distance_to(self.spawn_pos) >= self.max_range
 
     def get_rect(self) -> pygame.Rect:
         return pygame.Rect(self.pos.x - self.width / 2, self.pos.y - self.height / 2, self.width, self.height)

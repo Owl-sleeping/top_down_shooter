@@ -239,6 +239,7 @@ class Game:
                     self.bullets.append(Bullet(
                         muzzle, direction + spread, owner_id=pid,
                         speed=weapon.bullet_speed, damage=weapon.bullet_damage,
+                        max_range=weapon.vision_range,
                     ))
 
     def update(self, dt: float) -> None:
@@ -350,6 +351,9 @@ class Game:
         for b in self.bullets:
             b_rect = b.get_rect()
             if not despawn_bounds.collidepoint(b.pos):
+                b.alive = False
+                continue
+            if b.exceeded_range():
                 b.alive = False
                 continue
             for w in self.walls:
