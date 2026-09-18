@@ -1,2 +1,8 @@
 __pycache__/
 *.pyc
+
+# ビルド関連(PyInstaller)
+.venv/
+build/
+dist/
+*.spec
