@@ -67,8 +67,8 @@ def draw_hud(
 def _draw_weapon_icon(
     screen: pygame.Surface, icon_frame: pygame.Surface, portrait: pygame.Surface | None
 ) -> None:
-    """装備中の武器を、枠(icon.png)+武器画像(横から見た画像)で表示する。"""
-    screen.blit(icon_frame, WEAPON_ICON_POS)
+    """装備中の武器を武器画像(横から見た画像)で表示する。"""
+    # screen.blit(icon_frame, WEAPON_ICON_POS)  # icon.pngの枠は非表示にする
     if portrait is not None:
         center = (
             WEAPON_ICON_POS[0] + WEAPON_ICON_FRAME_SIZE[0] // 2,

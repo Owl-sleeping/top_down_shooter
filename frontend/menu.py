@@ -154,7 +154,7 @@ def _draw_weapon_select(
 
     for i, w in enumerate(WEAPONS):
         row_y = start_y + i * row_height
-        screen.blit(icon_frame, (icon_x, row_y))
+        # screen.blit(icon_frame, (icon_x, row_y))  # icon.pngの枠は非表示にする
 
         portrait = portraits[w.name]
         icon_center = (icon_x + WEAPON_ICON_FRAME_SIZE[0] // 2, row_y + WEAPON_ICON_FRAME_SIZE[1] // 2)
