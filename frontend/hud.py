@@ -7,7 +7,7 @@ from backend.player import Player
 from constants import (
     COLOR_HP_BG, COLOR_HP_FG, COLOR_AMMO_FULL, COLOR_AMMO_EMPTY,
     COLOR_RELOAD_BG, COLOR_RELOAD_FG, COLOR_RELOAD_TEXT,
-    COLOR_SLOT_BG, COLOR_SLOT_BORDER, COLOR_SLOT_NUMBER, COLOR_COUNT_TEXT, COLOR_COUNT_BG,
+    COLOR_SLOT_BG, COLOR_SLOT_BORDER, COLOR_COUNT_TEXT, COLOR_COUNT_BG,
     COLOR_GRENADE_BAR, COLOR_MEDKIT_BAR, COLOR_ENEMY_PLAYER,
     COLOR_GRENADE_ICON,
     MAX_GRENADES, MAX_MEDKITS,
@@ -16,7 +16,7 @@ from constants import (
     RELOAD_GAUGE_POS, RELOAD_GAUGE_SIZE, RELOAD_TEXT_POS,
     ENEMY_HP_BAR_POS, ENEMY_HP_BAR_SIZE, ENEMY_HP_LABEL_OFFSET_Y,
     INVENTORY_SLOT_COUNT, INVENTORY_SLOT_SIZE, INVENTORY_SLOT_GAP, INVENTORY_ORIGIN,
-    INVENTORY_ICON_SIZE,
+    INVENTORY_ICON_SIZE, INVENTORY_COUNT_FONT_SIZE,
 )
 
 # スロット番号(表示順)に対応する所持品の定義。ここに1件足すだけで
@@ -45,6 +45,11 @@ def create_weapon_icon_frame() -> pygame.Surface:
     return pygame.transform.smoothscale(icon_img, WEAPON_ICON_FRAME_SIZE)
 
 
+def create_count_font() -> pygame.font.Font:
+    """アイテム残り回数を大きく見やすく表示するための専用フォント。"""
+    return pygame.font.SysFont("arial", INVENTORY_COUNT_FONT_SIZE, bold=True)
+
+
 def draw_hud(
     screen: pygame.Surface,
     font: pygame.font.Font,
@@ -53,13 +58,14 @@ def draw_hud(
     enemy: Player | None = None,
     weapon_icon_frame: pygame.Surface | None = None,
     weapon_portrait: pygame.Surface | None = None,
+    count_font: pygame.font.Font | None = None,
 ) -> None:
     if weapon_icon_frame is not None:
         _draw_weapon_icon(screen, weapon_icon_frame, weapon_portrait)
     _draw_hp_bar(screen, player)
     # _draw_ammo_boxes(screen, player)  # 弾の残数表示は非表示にする
     _draw_reload_gauge(screen, font, player)
-    _draw_inventory(screen, font, player, item_textures)
+    _draw_inventory(screen, count_font or font, player, item_textures)
     # if enemy is not None:
     #     _draw_enemy_hp_bar(screen, font, enemy)  # 敵のHPは見えないようにする
 
@@ -116,7 +122,7 @@ def _draw_reload_gauge(screen: pygame.Surface, font: pygame.font.Font, player: P
 
 def _draw_inventory(
     screen: pygame.Surface,
-    font: pygame.font.Font,
+    count_font: pygame.font.Font,
     player: Player,
     item_textures: dict[str, pygame.Surface],
 ) -> None:
@@ -130,16 +136,22 @@ def _draw_inventory(
             count = getattr(player, item["key"])
             texture = item_textures[item["texture"]]
 
-            screen.blit(texture, texture.get_rect(center=slot.center))
-            txt = font.render(str(count), True, COLOR_COUNT_TEXT)
-            screen.blit(txt, txt.get_rect(center=(slot.centerx + 18, slot.centery + 18)))
+            # アイコンは少し上寄りに配置し、下に残り回数バーを置くスペースを空ける
+            icon_center = (slot.centerx, slot.top + slot.height // 2 - 8)
+            screen.blit(texture, texture.get_rect(center=icon_center))
 
-            count_box = pygame.Rect(slot.x + 10, slot.y + 55, 50, 12)
-            pygame.draw.rect(screen, COLOR_COUNT_BG, count_box)
+            # 残り回数: 右上に目立つバッジで大きく表示
+            badge_radius = 18
+            badge_center = (slot.right - 4, slot.top + 4)
+            pygame.draw.circle(screen, COLOR_COUNT_BG, badge_center, badge_radius)
+            pygame.draw.circle(screen, item["bar_color"], badge_center, badge_radius, 3)
+            txt = count_font.render(str(count), True, COLOR_COUNT_TEXT)
+            screen.blit(txt, txt.get_rect(center=badge_center))
+
+            # 残量バー: スロット下端いっぱいに幅広く表示
+            bar_height = 14
+            bar_rect = pygame.Rect(slot.x + 8, slot.bottom - bar_height - 6, slot.width - 16, bar_height)
+            pygame.draw.rect(screen, COLOR_COUNT_BG, bar_rect)
             pygame.draw.rect(screen, item["bar_color"], (
-                count_box.x, count_box.y, 50.0 * count / item["max"], 12
+                bar_rect.x, bar_rect.y, bar_rect.width * (count / item["max"]), bar_rect.height
             ))
-
-        # スロット番号
-        num_txt = font.render(str(i + 1), True, COLOR_SLOT_NUMBER)
-        screen.blit(num_txt, (slot.x + 5, slot.y + 5))
