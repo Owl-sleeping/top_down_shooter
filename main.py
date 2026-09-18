@@ -102,27 +102,26 @@ class Vision:
 
 class Bullet:
     def __init__(self, p, angle):
-        self.pos = list(p)
+        self.pos = pygame.Vector2(p)
         self.angle = angle
         self.speed = BULLET_SPEED
-        self.vel = [math.cos(angle) * self.speed, math.sin(angle) * self.speed]
+        self.vel = pygame.Vector2(math.cos(angle), math.sin(angle)) * self.speed
         self.alive = True
         self.width, self.height = BULLET_WIDTH, BULLET_HEIGHT
 
     def update(self, dt):
-        self.pos[0] += self.vel[0] * dt
-        self.pos[1] += self.vel[1] * dt
+        self.pos += self.vel * dt
 
     def get_rect(self):
-        return pygame.Rect(self.pos[0] - 12, self.pos[1] - 3, self.width, self.height)
+        return pygame.Rect(self.pos.x - self.width / 2, self.pos.y - self.height / 2, self.width, self.height)
 
     def draw(self, surface):
         # 回転した矩形の描画
-        draw_rotated_rect(surface, (self.width, self.height), COLOR_BULLET, self.angle, (self.pos[0], self.pos[1]))
+        draw_rotated_rect(surface, (self.width, self.height), COLOR_BULLET, self.angle, self.pos)
 
     def visible_to(self, triangles):
         # 弾のが視界内にあるか
-        px, py = self.pos[0], self.pos[1]
+        px, py = self.pos.x, self.pos.y
         for tri in triangles:
             if self.point_in_triangle((px, py), tri[0], tri[1], tri[2]):
                 return True
@@ -144,20 +143,18 @@ class Bullet:
 
 class Grenade:
     def __init__(self, p, angle):
-        self.pos = list(p)
+        self.pos = pygame.Vector2(p)
         self.speed = GRENADE_THROW_SPEED
-        self.vel = [math.cos(angle) * self.speed, math.sin(angle) * self.speed]
+        self.vel = pygame.Vector2(math.cos(angle), math.sin(angle)) * self.speed
         self.timer = GRENADE_FUSE_TIME
         self.exploded = False
-        self.radius = 150
+        self.explosion_radius = GRENADE_EXPLOSION_RADIUS
 
     def update(self, dt):
         if self.exploded:
             return
-        self.pos[0] += self.vel[0] * dt
-        self.pos[1] += self.vel[1] * dt
-        self.vel[0] *= GRENADE_FRICTION
-        self.vel[1] *= GRENADE_FRICTION
+        self.pos += self.vel * dt
+        self.vel *= GRENADE_FRICTION
 
         self.timer -= dt
         if self.timer <= 0:
@@ -165,10 +162,10 @@ class Grenade:
 
     def draw(self, surface):
         if not self.exploded:
-            pygame.draw.circle(surface, COLOR_GRENADE, (int(self.pos[0]), int(self.pos[1])), GRENADE_VISUAL_RADIUS)
+            pygame.draw.circle(surface, COLOR_GRENADE, (int(self.pos.x), int(self.pos.y)), GRENADE_VISUAL_RADIUS)
 
     def explosion_circle(self):
-        return (self.pos[0], self.pos[1], self.radius * (2.0 / 3.0))
+        return (self.pos.x, self.pos.y, self.explosion_radius)
 
 
 class Explosion:
