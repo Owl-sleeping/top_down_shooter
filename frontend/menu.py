@@ -5,6 +5,7 @@ import socket
 import pygame
 
 from backend.network import Client, Connection, Host
+from backend.maps import GameMap, MAPS, get_map_by_name
 from constants import WIDTH, HEIGHT, NETWORK_PORT, COLOR_BG, COLOR_PLAYER
 
 # "arial"はCJKグリフを持たないため、日本語表示にはIME非依存で日本語Windowsに
@@ -13,28 +14,40 @@ _MENU_FONT_NAME = "yugothic"
 _LINE_HEIGHT = 28
 
 
-def run_menu(screen: pygame.Surface, clock: pygame.time.Clock, font: pygame.font.Font) -> tuple[str, Connection | None, int]:
+def run_menu(
+    screen: pygame.Surface, clock: pygame.time.Clock, font: pygame.font.Font
+) -> tuple[str, Connection | None, int, GameMap]:
     """[1]ローカルプレイ [2]ホストになる [3]参加する を選択させる。
-    戻り値: (mode, connection, local_id)"""
+    戻り値: (mode, connection, local_id, game_map)"""
     menu_font = pygame.font.SysFont(_MENU_FONT_NAME, 24)
 
     while True:
         choice = _select_mode(screen, clock, menu_font)
 
         if choice == "solo":
-            return "solo", None, 0
+            game_map = _select_map(screen, clock, menu_font)
+            if game_map is None:
+                continue
+            return "solo", None, 0, game_map
 
         if choice == "host":
-            connection = _host_flow(screen, clock, menu_font)
+            game_map = _select_map(screen, clock, menu_font)
+            if game_map is None:
+                continue
+            connection = _host_flow(screen, clock, menu_font, game_map)
             if connection is not None:
-                return "host", connection, 0
+                return "host", connection, 0, game_map
             continue
 
         if choice == "client":
             connection = _client_flow(screen, clock, menu_font)
-            if connection is not None:
-                return "client", connection, 1
-            continue
+            if connection is None:
+                continue
+            game_map = _wait_for_map_selection(screen, clock, menu_font, connection)
+            if game_map is None:
+                connection.close()
+                continue
+            return "client", connection, 1, game_map
 
 
 def _select_mode(screen: pygame.Surface, clock: pygame.time.Clock, font: pygame.font.Font) -> str:
@@ -68,7 +81,56 @@ def _select_mode(screen: pygame.Surface, clock: pygame.time.Clock, font: pygame.
         pygame.display.flip()
 
 
-def _host_flow(screen: pygame.Surface, clock: pygame.time.Clock, font: pygame.font.Font) -> Connection | None:
+def _select_map(screen: pygame.Surface, clock: pygame.time.Clock, font: pygame.font.Font) -> GameMap | None:
+    lines = ["マップを選択してください", ""]
+    lines += [f"[{i + 1}] {m.name}" for i, m in enumerate(MAPS)]
+    lines += ["", "ESC で戻る"]
+
+    while True:
+        clock.tick(30)
+        for event in pygame.event.get():
+            if event.type == pygame.QUIT:
+                pygame.quit()
+                raise SystemExit
+            if event.type == pygame.KEYDOWN:
+                if event.key == pygame.K_ESCAPE:
+                    return None
+                for i, m in enumerate(MAPS):
+                    if event.key == pygame.K_1 + i:
+                        return m
+
+        _draw_lines(screen, font, lines)
+        pygame.display.flip()
+
+
+def _wait_for_map_selection(
+    screen: pygame.Surface, clock: pygame.time.Clock, font: pygame.font.Font, connection: Connection
+) -> GameMap | None:
+    lines = ["ホストのマップ選択を待っています...", "", "ESC でキャンセル"]
+
+    while True:
+        clock.tick(30)
+        for event in pygame.event.get():
+            if event.type == pygame.QUIT:
+                pygame.quit()
+                raise SystemExit
+            if event.type == pygame.KEYDOWN and event.key == pygame.K_ESCAPE:
+                return None
+
+        if not connection.connected:
+            return None
+
+        for msg in connection.poll():
+            if msg.get("type") == "map_select":
+                return get_map_by_name(msg["map"])
+
+        _draw_lines(screen, font, lines)
+        pygame.display.flip()
+
+
+def _host_flow(
+    screen: pygame.Surface, clock: pygame.time.Clock, font: pygame.font.Font, game_map: GameMap
+) -> Connection | None:
     host_net = Host(NETWORK_PORT)
     try:
         local_ip = socket.gethostbyname(socket.gethostname())
@@ -98,6 +160,7 @@ def _host_flow(screen: pygame.Surface, clock: pygame.time.Clock, font: pygame.fo
 
             connection = host_net.accept(poll_timeout=0.05)
             if connection is not None:
+                connection.send({"type": "map_select", "map": game_map.name})
                 return connection
 
             _draw_lines(screen, font, lines)
