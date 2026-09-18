@@ -134,8 +134,8 @@ class Game:
                 # if event.key == pygame.K_1:
                 #     self._trigger_action("grenade")
 
-                # 回復：２
-                if event.key == pygame.K_2:
+                # 回復：スペースキー
+                if event.key == pygame.K_SPACE:
                     self._trigger_action("medkit")
 
                 # リマッチ：R（ゲーム終了後のみ）
