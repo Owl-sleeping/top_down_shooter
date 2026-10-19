@@ -115,12 +115,12 @@ Pygameで作られた、見下ろし型の2Dシューティングゲームです
 
 ### Windows実行ファイルを使う場合
 
-1. 配布元から `TopDownShooter.exe` をダウンロードします。
+1. GitHubリポジトリの `downloads/TopDownShooter.exe` を開き、ダウンロードします。
 2. ダウンロードしたファイルを任意のフォルダに置きます。
 3. `TopDownShooter.exe` を起動します。
 4. メニューでモードを選び、画面の案内に従ってマップや武器を選びます。
 
-この方法ではPythonのインストールは不要です。実行ファイルは `build_exe.bat` で作成でき、出力先は `dist/TopDownShooter.exe` です。`dist/` はGit管理対象外なので、ソースコードのZIPには通常含まれません。実行ファイルを配布する場合は、別途ダウンロードできる場所にアップロードしてください。
+この方法ではPythonのインストールは不要です。GitHubには配布用コピーを `downloads/TopDownShooter.exe` として登録します。ビルド元の成果物は `dist/TopDownShooter.exe` に出力されますが、`dist/` 自体はGit管理対象外です。
 
 ### ソースコードから起動する場合
 
