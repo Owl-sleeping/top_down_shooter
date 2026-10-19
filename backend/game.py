@@ -65,8 +65,6 @@ class Game:
         self._reset_round_state()
 
     def _reset_round_state(self) -> None:
-        """1試合分の状態(プレイヤー・弾・グレネード・爆発・勝敗)を初期化する。
-        壁配置やネットワーク接続・武器選択など、試合をまたいで保持すべきものには触れない。"""
         self.players: dict[int, Player] = {
             0: Player(self.game_map.spawn_positions[0], weapon=self.weapons.get(0, WEAPONS[0]))
         }
@@ -81,8 +79,6 @@ class Game:
         self.winner_id = None
 
     def restart(self) -> None:
-        """リマッチ。ソロ/ホストはその場で試合状態をリセットする
-        (ホストならこの直後に送られるスナップショットでクライアントにも反映される)。"""
         self._reset_round_state()
 
     def run(self) -> None:
@@ -148,8 +144,6 @@ class Game:
                     self._trigger_action("reload")
 
     def _trigger_action(self, action: str) -> None:
-        """グレネード投擲・回復・リロードのような単発アクション。
-        クライアントはホストへ送信するだけで、実際の適用はホスト側でのみ行う。"""
         if self.mode == "client":
             self.connection.send({"type": "action", "action": action})
         else:
@@ -157,7 +151,6 @@ class Game:
             self._apply_action(self.local_id, self.players[self.local_id], action, cursor)
 
     def _trigger_rematch(self) -> None:
-        """リマッチ要求。まず自分の武器を選び直してから、ホスト権威で試合をリセットする。"""
         weapon = self._prompt_weapon_reselect()
         if weapon is None:
             return  # ESCでキャンセル
@@ -176,12 +169,10 @@ class Game:
         self.restart()
 
     def _prompt_weapon_reselect(self) -> Weapon | None:
-        from frontend.menu import _select_weapon  # 循環import回避のため遅延import
+        from frontend.menu import _select_weapon
         return _select_weapon(self.screen, self.clock, self.font)
 
     def _await_client_rematch_weapon(self) -> bool:
-        """(ホスト用)クライアントがリマッチ用の武器選択を終えて送り返すまで待つ。
-        ESCでキャンセル、または接続が切れた場合はFalseを返す。"""
         while True:
             self.clock.tick(FPS)
             for event in pygame.event.get():

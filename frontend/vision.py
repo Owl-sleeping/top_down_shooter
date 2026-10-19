@@ -1,4 +1,4 @@
-"""プレイヤーの視界(FOV)をレイキャストで計算するモジュール。"""
+"""プレイヤーの視界(FOV)を計算するモジュール。"""
 
 import math
 
@@ -23,8 +23,6 @@ def point_in_triangle(pt: Point, v1: Point, v2: Point, v3: Point) -> bool:
 
 
 def is_point_visible(point: Point, triangles: list[list[Point]]) -> bool:
-    """点がFOV三角形群(壁でのレイキャスト結果)のいずれかの内側にあるか。
-    レイ自体が壁で遮られて短くなっているため、この判定はFOV角度と壁の遮蔽の両方を兼ねる。"""
     return any(point_in_triangle(point, tri[0], tri[1], tri[2]) for tri in triangles)
 
 

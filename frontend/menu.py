@@ -10,8 +10,6 @@ from frontend.weapon_sprites import load_weapon_portraits
 from frontend.hud import create_weapon_icon_frame
 from constants import WIDTH, HEIGHT, RELAY_URL, COLOR_BG, COLOR_PLAYER, WEAPON_ICON_FRAME_SIZE
 
-# "arial"はCJKグリフを持たないため、日本語表示にはIME非依存で日本語Windowsに
-# 標準搭載されているYu Gothicを使う(HUDの英語表示用フォントとは別に用意する)。
 _MENU_FONT_NAME = "yugothic"
 _LINE_HEIGHT = 28
 
@@ -19,8 +17,7 @@ _LINE_HEIGHT = 28
 def run_menu(
     screen: pygame.Surface, clock: pygame.time.Clock, font: pygame.font.Font
 ) -> tuple[str, RelayConnection | None, int, GameMap, dict[int, Weapon]]:
-    """[1]ローカルプレイ [2]ルームを作る [3]ルームに参加する を選択させる。
-    戻り値: (mode, connection, local_id, game_map, weapons)"""
+    """ランダムマッチ、ルーム対戦、ローカルプレイから選択させる。"""
     menu_font = pygame.font.SysFont(_MENU_FONT_NAME, 24)
 
     while True:
@@ -34,6 +31,11 @@ def run_menu(
             if weapon is None:
                 continue
             return "solo", None, 0, game_map, {0: weapon}
+
+        if choice == "matchmaking":
+            result = _random_match_flow(screen, clock, menu_font)
+            if result is not None:
+                return result
 
         if choice == "host":
             game_map = _select_map(screen, clock, menu_font)
@@ -69,9 +71,10 @@ def _select_mode(screen: pygame.Surface, clock: pygame.time.Clock, font: pygame.
     lines = [
         "2D TOP-DOWN SHOOTER",
         "",
-        "[1] ローカルプレイ",
+        "[1] オンライン対戦: ランダムマッチ",
         "[2] オンライン対戦: ルームを作る",
         "[3] オンライン対戦: ルームに参加する",
+        "[4] ローカルプレイ (1人)",
         "",
         "ESC で終了",
     ]
@@ -86,14 +89,85 @@ def _select_mode(screen: pygame.Surface, clock: pygame.time.Clock, font: pygame.
                     pygame.quit()
                     raise SystemExit
                 if event.key == pygame.K_1:
-                    return "solo"
+                    return "matchmaking"
                 if event.key == pygame.K_2:
                     return "host"
                 if event.key == pygame.K_3:
                     return "client"
+                if event.key == pygame.K_4:
+                    return "solo"
 
         _draw_lines(screen, font, lines)
         pygame.display.flip()
+
+
+def _random_match_flow(
+    screen: pygame.Surface, clock: pygame.time.Clock, font: pygame.font.Font
+) -> tuple[str, RelayConnection, int, GameMap, dict[int, Weapon]] | None:
+    conn = RelayConnection()
+    conn.start_matchmaking(RELAY_URL)
+    while True:
+        clock.tick(30)
+        for event in pygame.event.get():
+            if event.type == pygame.QUIT:
+                conn.close()
+                pygame.quit()
+                raise SystemExit
+            if event.type == pygame.KEYDOWN and event.key == pygame.K_ESCAPE:
+                conn.close()
+                return None
+
+        if conn.failed or not conn.connected and conn.match_found:
+            conn.close()
+            _show_message(screen, clock, font, ["ランダムマッチに接続できませんでした", "", "何かキーを押すと戻ります"])
+            return None
+        if conn.match_found:
+            break
+
+        _draw_lines(screen, font, ["対戦相手を探しています...", "", "ESC でキャンセル"])
+        pygame.display.flip()
+
+    if conn.match_role == "host":
+        game_map = _select_map(screen, clock, font)
+        if game_map is None:
+            conn.close()
+            return None
+        host_weapon = _select_weapon(screen, clock, font)
+        if host_weapon is None:
+            conn.close()
+            return None
+        conn.send({"type": "map_select", "map": game_map.name, "weapon": host_weapon.name})
+        while conn.connected:
+            clock.tick(30)
+            for event in pygame.event.get():
+                if event.type == pygame.QUIT:
+                    conn.close()
+                    pygame.quit()
+                    raise SystemExit
+                if event.type == pygame.KEYDOWN and event.key == pygame.K_ESCAPE:
+                    conn.close()
+                    return None
+            for msg in conn.poll():
+                if msg.get("type") == "weapon_select":
+                    client_weapon = get_weapon_by_name(msg["weapon"])
+                    return "host", conn, 0, game_map, {0: host_weapon, 1: client_weapon}
+            _draw_lines(screen, font, ["相手の武器選択を待っています...", "", "ESC でキャンセル"])
+            pygame.display.flip()
+    else:
+        received = _wait_for_map_selection(screen, clock, font, conn)
+        if received is None:
+            conn.close()
+            return None
+        game_map, host_weapon = received
+        client_weapon = _select_weapon(screen, clock, font)
+        if client_weapon is None:
+            conn.close()
+            return None
+        conn.send({"type": "weapon_select", "weapon": client_weapon.name})
+        return "client", conn, 1, game_map, {0: host_weapon, 1: client_weapon}
+
+    conn.close()
+    return None
 
 
 def _select_map(screen: pygame.Surface, clock: pygame.time.Clock, font: pygame.font.Font) -> GameMap | None:
@@ -154,7 +228,6 @@ def _draw_weapon_select(
 
     for i, w in enumerate(WEAPONS):
         row_y = start_y + i * row_height
-        # screen.blit(icon_frame, (icon_x, row_y))  # icon.pngの枠は非表示にする
 
         portrait = portraits[w.name]
         icon_center = (icon_x + WEAPON_ICON_FRAME_SIZE[0] // 2, row_y + WEAPON_ICON_FRAME_SIZE[1] // 2)
@@ -195,7 +268,6 @@ def _wait_for_map_selection(
 
 
 def _show_message(screen: pygame.Surface, clock: pygame.time.Clock, font: pygame.font.Font, lines: list[str]) -> None:
-    """何かキーが押されるまでメッセージを表示し続ける(エラー表示用)。"""
     while True:
         clock.tick(30)
         for event in pygame.event.get():

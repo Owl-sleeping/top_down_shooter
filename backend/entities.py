@@ -36,7 +36,7 @@ class Bullet:
         self.width, self.height = BULLET_WIDTH, BULLET_HEIGHT
         self.owner_id = owner_id
         self.damage = damage
-        self.max_range = max_range  # 発射地点からこの距離を超えると消滅する(武器の射程)
+        self.max_range = max_range
 
     def update(self, dt: float) -> None:
         self.pos += self.vel * dt
@@ -48,11 +48,9 @@ class Bullet:
         return pygame.Rect(self.pos.x - self.width / 2, self.pos.y - self.height / 2, self.width, self.height)
 
     def draw(self, surface: pygame.Surface) -> None:
-        # 回転した矩形の描画
         draw_rotated_rect(surface, (self.width, self.height), COLOR_BULLET, self.angle, self.pos)
 
     def visible_to(self, triangles: list[list[Point]]) -> bool:
-        # 弾が視界内にあるか
         return is_point_visible((self.pos.x, self.pos.y), triangles)
 
 
@@ -92,7 +90,6 @@ class Explosion:
         self.damaged_ids: set[int] = set()
 
     def intersects_rect(self, rect: pygame.Rect) -> bool:
-        # 円と矩形の当たり判定
         closest_x = max(rect.left, min(self.x, rect.right))
         closest_y = max(rect.top, min(self.y, rect.bottom))
         dist_x = self.x - closest_x

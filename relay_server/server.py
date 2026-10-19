@@ -1,11 +1,6 @@
-"""4桁のルームコードでホストとクライアントを中継するリレーサーバー。
-
-無料のホスティング(Replit等)にデプロイして常駐させる。ゲーム本体のメッセージ
-(map_select/weapon_select/input/action/snapshotなど)の中身は一切解釈せず、
-ペアリング後は届いたメッセージをそのまま相手に転送するだけの単純な中継。
-
-これにより、ホスト側のポート開放やCGNATを気にする必要がなくなる
-(ホスト・クライアントの双方が、このサーバーへ「発信」接続するだけで済むため)。
+"""
+4桁のルームコードのホストとサーバー
+無料のホスティング(Replit)にデプロイする。
 """
 
 import asyncio
@@ -19,9 +14,10 @@ import websockets
 ROOM_CODE_DIGITS = 4
 ROOM_TIMEOUT_SECONDS = 600  # 10分間誰も参加しなければルームを自動的に破棄する
 
-# ルームコード -> ホスト側のWebSocket接続
+# ルームコード、ホスト側のWebSocket接続
 rooms: dict[str, "websockets.WebSocketServerProtocol"] = {}
 room_created_at: dict[str, float] = {}
+matchmaking_waiters: list[tuple[object, asyncio.Future]] = []
 
 
 def _generate_code() -> str:
@@ -86,6 +82,43 @@ async def handler(websocket) -> None:
             room_created_at.pop(code, None)
         return
 
+    if msg_type == "matchmake":
+        loop = asyncio.get_running_loop()
+        peer = None
+        peer_ready = None
+        while matchmaking_waiters:
+            candidate, ready = matchmaking_waiters.pop(0)
+            if not ready.done():
+                peer, peer_ready = candidate, ready
+                break
+
+        if peer is None:
+            ready = loop.create_future()
+            entry = (websocket, ready)
+            matchmaking_waiters.append(entry)
+            closed = asyncio.create_task(websocket.wait_closed())
+            try:
+                done, _ = await asyncio.wait((ready, closed), return_when=asyncio.FIRST_COMPLETED)
+                if ready in done:
+                    return
+            finally:
+                closed.cancel()
+                if entry in matchmaking_waiters:
+                    matchmaking_waiters.remove(entry)
+                if not ready.done():
+                    ready.cancel()
+            return
+
+        try:
+            await peer.send(json.dumps({"type": "matched", "role": "client"}))
+            await websocket.send(json.dumps({"type": "matched", "role": "host"}))
+            if not peer_ready.done():
+                peer_ready.set_result(True)
+            await _relay(websocket, peer)
+        except websockets.ConnectionClosed:
+            await peer.close()
+        return
+
     if msg_type == "join":
         code = str(msg.get("code", "")).strip()
         host_ws = rooms.get(code)
@@ -110,7 +143,7 @@ async def main() -> None:
     asyncio.create_task(_cleanup_stale_rooms())
     async with websockets.serve(handler, "0.0.0.0", port):
         print(f"Relay server listening on 0.0.0.0:{port}")
-        await asyncio.Future()  # 永久に待機(サーバーを動かし続ける)
+        await asyncio.Future()
 
 
 if __name__ == "__main__":

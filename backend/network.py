@@ -1,4 +1,4 @@
-"""TCPソケットによる送受信を扱うネットワーク層。標準ライブラリのみで実装する。"""
+"""TCPソケットによる送受信を扱うネットワーク層。"""
 
 import json
 import queue
@@ -10,7 +10,6 @@ Message = dict
 
 
 class Connection:
-    """1本のTCPソケットに対する送受信を扱う。Host/Client双方から使う共通部品。"""
 
     def __init__(self, sock: socket.socket) -> None:
         self.sock = sock
@@ -53,7 +52,6 @@ class Connection:
             self.connected = False
 
     def poll(self) -> list[Message]:
-        """メインループから毎フレーム呼ぶ。非ブロッキングで溜まっているメッセージを全て取り出す。"""
         msgs = []
         while True:
             try:
@@ -78,9 +76,6 @@ class Host:
         self.listen_sock.listen(1)
 
     def accept(self, poll_timeout: float = 0.1) -> Connection | None:
-        """1回のポーリングでクライアント接続を試みる。未接続ならNone。
-        ブロッキングacceptにせずタイムアウト付きで呼ぶことで、呼び出し側(メニュー画面)が
-        pygameのイベント処理を継続しながら接続待ちできるようにする。"""
         self.listen_sock.settimeout(poll_timeout)
         try:
             client_sock, _addr = self.listen_sock.accept()

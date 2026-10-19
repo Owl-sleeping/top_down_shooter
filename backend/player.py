@@ -1,4 +1,4 @@
-"""プレイヤーの状態（位置・HP・弾薬・所持品）と振る舞いを表すクラス。"""
+"""プレイヤーの状態を表すクラス。"""
 
 import math
 import pygame
@@ -40,8 +40,6 @@ class Player:
         return self.hp <= 0
 
     def move(self, move_dir: Point, walls: list[pygame.Rect], dt: float) -> None:
-        """move_dirは(x, y)の入力方向(正規化前)。壁に当たった軸だけ移動を止め、
-        直交する軸には引き続き移動できるようにする(壁沿いのスライド移動)。"""
         dx, dy = move_dir
         if dx == 0 and dy == 0:
             return
@@ -103,7 +101,6 @@ class Player:
             self.reload_time = self.weapon.reload_time
 
     def try_throw_grenade(self, cursor_pos: Point) -> tuple[Point, float] | None:
-        """投擲条件を満たしていれば(発射位置, 向き)を返し内部状態を消費する。満たさなければNone。"""
         if self.grenade_count > 0:
             self.grenade_count -= 1
             center = self.rect.center

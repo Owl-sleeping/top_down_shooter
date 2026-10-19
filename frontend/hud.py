@@ -1,4 +1,4 @@
-"""HUD(HPバー・弾薬・リロードゲージ・インベントリ)の描画。"""
+"""HUDの描画。"""
 
 import pygame
 
@@ -19,9 +19,10 @@ from constants import (
     INVENTORY_ICON_SIZE, INVENTORY_COUNT_FONT_SIZE,
 )
 
-# スロット番号(表示順)に対応する所持品の定義。ここに1件足すだけで
-# インベントリスロットに新しいアイテムを割り当てられる。要素が無い
-# スロットは枠だけが描画される。
+# スロット番号に対応する所持品の定義。
+# ここに足すだけでインベントリスロットに新しいアイテムを割り当てられる。
+# 要素が無いスロットは枠だけが描画される。
+
 INVENTORY_ITEMS = [
     # {"key": "grenade_count", "texture": "grenade", "max": MAX_GRENADES, "bar_color": COLOR_GRENADE_BAR},  # グレネード機能は一時的に無効化
     {"key": "medkit_count", "texture": "medkit", "max": MAX_MEDKITS, "bar_color": COLOR_MEDKIT_BAR},
@@ -40,13 +41,11 @@ def create_item_textures() -> dict[str, pygame.Surface]:
 
 
 def create_weapon_icon_frame() -> pygame.Surface:
-    """装備武器アイコンの枠画像(images/icon.png)をゲーム開始時に一度だけ読み込む。"""
     icon_img = pygame.image.load(str(IMAGES_DIR / "icon.png")).convert_alpha()
     return pygame.transform.smoothscale(icon_img, WEAPON_ICON_FRAME_SIZE)
 
 
 def create_count_font() -> pygame.font.Font:
-    """アイテム残り回数を大きく見やすく表示するための専用フォント。"""
     return pygame.font.SysFont("arial", INVENTORY_COUNT_FONT_SIZE, bold=True)
 
 
@@ -136,11 +135,10 @@ def _draw_inventory(
             count = getattr(player, item["key"])
             texture = item_textures[item["texture"]]
 
-            # アイコンは少し上寄りに配置し、下に残り回数バーを置くスペースを空ける
             icon_center = (slot.centerx, slot.top + slot.height // 2 - 8)
             screen.blit(texture, texture.get_rect(center=icon_center))
 
-            # 残り回数: 右上に目立つバッジで大きく表示
+            # 残り回数
             badge_radius = 18
             badge_center = (slot.right - 4, slot.top + 4)
             pygame.draw.circle(screen, COLOR_COUNT_BG, badge_center, badge_radius)
@@ -148,7 +146,7 @@ def _draw_inventory(
             txt = count_font.render(str(count), True, COLOR_COUNT_TEXT)
             screen.blit(txt, txt.get_rect(center=badge_center))
 
-            # 残量バー: スロット下端いっぱいに幅広く表示
+            # 残量バー
             bar_height = 14
             bar_rect = pygame.Rect(slot.x + 8, slot.bottom - bar_height - 6, slot.width - 16, bar_height)
             pygame.draw.rect(screen, COLOR_COUNT_BG, bar_rect)

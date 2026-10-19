@@ -20,6 +20,8 @@ class RelayConnection:
         self.incoming: "queue.Queue[Message]" = queue.Queue()
         self.connected = False   # 相手とのペアリングが完了し、対戦通信ができる状態か
         self.failed = False      # ペアリング前に接続が切れた/失敗したか
+        self.match_found = False
+        self.match_role: str | None = None
 
         self._loop = asyncio.new_event_loop()
         self._async_outgoing: asyncio.Queue = asyncio.Queue()
@@ -48,6 +50,25 @@ class RelayConnection:
         ws = self._ws
         if ws is not None:
             asyncio.run_coroutine_threadsafe(ws.close(), self._loop)
+
+    def start_matchmaking(self, url: str) -> None:
+        """ランダムマッチの待機を開始し、成立したら役割を受け取る。"""
+        asyncio.run_coroutine_threadsafe(self._connect_for_matchmaking(url), self._loop)
+
+    async def _connect_for_matchmaking(self, url: str) -> None:
+        try:
+            await self._connect(url)
+            await self._ws.send(json.dumps({"type": "matchmake"}))
+            raw = await self._ws.recv()
+            reply = json.loads(raw)
+            if reply.get("type") != "matched" or reply.get("role") not in ("host", "client"):
+                self.failed = True
+                return
+            self.match_role = reply["role"]
+            self._begin_relay()
+            self.match_found = True
+        except Exception:
+            self.failed = True
 
     # --- 内部実装 ---
 

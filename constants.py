@@ -47,16 +47,15 @@ MEDKIT_HEAL_AMOUNT = 25
 # ネットワーク
 NETWORK_PORT = 5555
 
-# 中継サーバー(relay_server/)のWebSocketアドレス。Replitにデプロイ済み。
-# 無料プランは29日で公開が失効するため、その際はReplitで再公開しURLを確認すること
-# (ドメイン自体は変わらない限りこのままでよい)。
+# 中継サーバーのWebSocketアドレス。Replitにデプロイ済。
+# 無料プランは29日で公開が失効するため、その際はReplitで再公開しURLを確認すること。
 RELAY_URL = "wss://2-dgame--owl-getup.replit.app"
 
-# 武器（弾数・連射間隔・リロード時間・弾速・威力・視界は backend/weapons.py で武器ごとに管理）
+# 武器
 BULLET_WIDTH = 24
 BULLET_HEIGHT = 6
 
-# 弾のライフサイクル（画面外に出たら消滅させるための余白）
+# 弾のサイクル
 BULLET_DESPAWN_MARGIN = 64
 
 # グレネード
@@ -71,14 +70,14 @@ EXPLOSION_DURATION = 2.0
 EXPLOSION_DAMAGE = 5
 EXPLOSION_RING_WIDTH = 10
 
-# 視界(FOV)。全武器共通。距離は上限を設けず、壁に当たるまで見える。
+# 視界。全武器共通。距離は壁に当たるまで見える。
 PLAYER_FOV_DEGREES = 60
 VISION_RAY_COUNT = 80
 VISION_RAY_MAX_LENGTH = 2000
-VISION_DARKNESS_ALPHA = 217  # 0.85 * 255 ≈ 217
+VISION_DARKNESS_ALPHA = 217
 VISION_LIGHT_ALPHA = 90
 
-# 銃の見た目(画像を使用。このサイズの矩形に収まるよう縦横比を保って拡縮する)
+# 銃の見た目
 WEAPON_SPRITE_MAX_SIZE = (72, 72)
 GUN_FORWARD_OFFSET = 20
 GUN_SIDE_OFFSET = 15
@@ -88,12 +87,12 @@ GUN_MUZZLE_OFFSET = 30
 MAX_GRENADES = 3
 MAX_MEDKITS = 2
 
-# 装備武器アイコン(HUD左上・武器選択画面で使用)
+# 装備武器アイコン
 WEAPON_ICON_POS = (20, 20)
-WEAPON_ICON_FRAME_SIZE = (120, 120)  # icon.pngを縮小して表示するサイズ
-WEAPON_PORTRAIT_SIZE = (80, 80)      # 上記の枠内に重ねる武器画像(横から見た画像)のサイズ
+WEAPON_ICON_FRAME_SIZE = (120, 120)
+WEAPON_PORTRAIT_SIZE = (80, 80)
 
-# HUDレイアウト(装備武器アイコン・HP・リロードを詰めて配置する)
+# HUDレイアウト
 HP_BAR_POS = (20, 148)
 HP_BAR_SIZE = (250, 20)
 
@@ -109,7 +108,7 @@ RELOAD_GAUGE_POS = (20, 176)
 RELOAD_GAUGE_SIZE = (200, 10)
 RELOAD_TEXT_POS = (230, 171)
 
-# アイテム欄(現在は包帯のみ)
+# アイテム欄
 INVENTORY_SLOT_COUNT = 1
 INVENTORY_SLOT_SIZE = (90, 90)
 INVENTORY_SLOT_GAP = 90

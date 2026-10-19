@@ -1,11 +1,11 @@
-"""描画で繰り返し使われる共通処理をまとめたヘルパー群。"""
+"""描画で繰り返し使われる共通処理。"""
 
 import math
 import pygame
 
 
 def make_alpha_surface(size: tuple[int, int], fill: tuple[int, int, int, int] | None = None) -> pygame.Surface:
-    """フルスクリーン等の透過(SRCALPHA)サーフェスを生成する。"""
+    """フルスクリーン等の透過サーフェスを生成する。"""
     surf = pygame.Surface(size, pygame.SRCALPHA)
     if fill is not None:
         surf.fill(fill)
